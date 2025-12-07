@@ -17,9 +17,8 @@
 - 网络：克隆仓库需网络连通（部署后无网络也可使用）
 
 > [!TIP]
->  海纳思系统，直接如下安装即可
->  apt update
->  apt install nas-media-player
+>  海纳思系统，直接如下安装即可  
+> apt update && apt install -y nas-media-player  
 >  忽略下面一切
 
 > [!TIP]
