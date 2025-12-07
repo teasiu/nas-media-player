@@ -15,16 +15,27 @@
 - 系统：Linux（Ubuntu/Debian/嵌入式Linux，支持systemd最佳）
 - 权限：需root权限（sudo）
 - 网络：克隆仓库需网络连通（部署后无网络也可使用）
-```tips
-### 海纳思系统，直接如下安装即可
-
-apt update
-
-apt install nas-media-player
-
-忽略下面一切
-
+[!TIP] 海纳思系统，直接如下安装即可
 ```
+apt update
+apt install nas-media-player
+忽略下面一切
+```
+
+```markdown
+> [!TIP]
+> 新手推荐用以下命令快速运行容器，无需手动配置：
+
+```bash
+# 通用docker运行命令
+docker run -d \
+  --name nas-media-player \
+  -p 8800:8800 \
+  -v ~/nas-media:/mnt \
+  --restart always \
+  slitazcn/nas-media-player:latest
+```
+
 ### 2. 克隆仓库
 ```bash
 git clone https://github.com/teasiu/nas-media-player.git
