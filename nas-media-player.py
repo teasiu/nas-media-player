@@ -708,13 +708,21 @@ async def clear_dir_auth(dir_path: str = Form(...)):
 async def get_protected_dirs():
     return {"protected_dirs": get_protected_directories()}
 
+def get_host():
+    try:
+        with open("/proc/sys/net/ipv6/bindv6only") as f:
+            if f.read().strip() == "0":
+                return "::"
+    except:
+        pass
+    return "0.0.0.0"
 
 def main():
     init_password_file()
     import uvicorn
     uvicorn.run(
         app,
-        host="0.0.0.0",
+        host=get_host(),
         port=PORT,
         log_level="warning",
         workers=1,
