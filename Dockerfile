@@ -1,6 +1,6 @@
 FROM python:3.9-slim
 LABEL maintainer="神雕<teasiu@qq.com>"
-LABEL version="1.0"
+LABEL version="1.1"
 LABEL description="NAS Media Player 多架构Python版Docker镜像"
 
 ENV APP_DIR=/opt/nas-media-player \

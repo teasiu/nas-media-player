@@ -12,7 +12,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional, List, Dict
 import unicodedata
-
+import socket
 
 VIDEO_DIR = os.getenv("NAS_MEDIA_VIDEO_DIR", "/mnt")
 PORT = int(os.getenv("NAS_MEDIA_PORT", 8800))
@@ -708,27 +708,48 @@ async def clear_dir_auth(dir_path: str = Form(...)):
 async def get_protected_dirs():
     return {"protected_dirs": get_protected_directories()}
 
-def get_host():
+def create_listen_sockets(port: int) -> list:
+    sockets = []
+
+    # ===== IPv4 =====
+    sock4 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock4.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock4.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+    sock4.bind(("0.0.0.0", port))
+    sock4.listen(2048)
+    sockets.append(sock4)
+    logger.info(f"IPv4 监听: 0.0.0.0:{port}")
+
+    # ===== IPv6 =====
     try:
-        with open("/proc/sys/net/ipv6/bindv6only") as f:
-            if f.read().strip() == "0":
-                return "::"
-    except:
-        pass
-    return "0.0.0.0"
+        sock6 = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        sock6.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock6.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
+        # 关键：必须是 1
+        sock6.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 1)
+        sock6.bind(("::", port))
+        sock6.listen(2048)
+        sockets.append(sock6)
+        logger.info(f"IPv6 监听: [::]:{port}")
+    except OSError as e:
+        logger.warning(f"IPv6 不可用，仅启用 IPv4: {e}")
+
+    return sockets
 
 def main():
     init_password_file()
     import uvicorn
-    uvicorn.run(
+    sockets = create_listen_sockets(PORT)
+    config = uvicorn.Config(
         app,
-        host=get_host(),
-        port=PORT,
         log_level="warning",
         workers=1,
         access_log=False,
         timeout_keep_alive=30
     )
+
+    server = uvicorn.Server(config)
+    server.run(sockets=sockets)
 
 if __name__ == "__main__":
     main()
