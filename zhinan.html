@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NAS媒体播放器使用指南</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Microsoft YaHei", Arial, sans-serif;
+        }
+        body {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.8;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #4285F4;
+        }
+        h1 {
+            color: #4285F4;
+            margin-bottom: 10px;
+            font-size: 2.2em;
+        }
+        h2 {
+            color: #2d5fc1;
+            margin: 30px 0 18px;
+            padding-left: 12px;
+            border-left: 4px solid #4285F4;
+            font-size: 1.6em;
+        }
+        h3 {
+            color: #1a4088;
+            margin: 20px 0 12px;
+            font-size: 1.3em;
+        }
+        .section {
+            background: white;
+            padding: 25px;
+            margin-bottom: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        ul, ol {
+            margin-left: 35px;
+            margin-bottom: 20px;
+        }
+        li {
+            margin-bottom: 10px;
+        }
+        code {
+            background: #f0f0f0;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: Consolas, monospace;
+            font-size: 0.95em;
+        }
+        pre {
+            background: #f0f0f0;
+            padding: 18px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin-bottom: 20px;
+            font-family: Consolas, monospace;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        .note {
+            background: #e8f4f8;
+            padding: 18px;
+            border-left: 4px solid #4285F4;
+            margin: 20px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        .warning {
+            background: #fff3cd;
+            padding: 18px;
+            border-left: 4px solid #ffc107;
+            margin: 20px 0;
+            border-radius: 0 4px 4px 0;
+        }
+        .feature {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+        .feature-icon {
+            font-size: 22px;
+            margin-right: 12px;
+            color: #4285F4;
+            margin-top: 3px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .version-info {
+            color: #666;
+            font-size: 1.1em;
+        }
+        .restriction {
+            color: #dc3545;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>NAS媒体播放器使用指南</h1>
+        <p class="version-info">版本：v1.0 | 日期：2025年12月</p>
+    </header>
+
+    <div class="section">
+        <h2>📋 目录</h2>
+        <ol>
+            <li><a href="#install">安装部署</a></li>
+            <li><a href="#basic">基础功能使用</a></li>
+            <li><a href="#advanced">高级功能使用</a></li>
+            <li><a href="#manage">目录与文件管理</a></li>
+            <li><a href="#faq">常见问题解答</a></li>
+            <li><a href="#troubleshoot">故障排除</a></li>
+        </ol>
+    </div>
+
+    <div class="section" id="install">
+        <h2>🔧 安装部署</h2>
+        
+        <h3>1. 环境要求</h3>
+        <ul>
+            <li><strong>操作系统</strong>：Linux（推荐Ubuntu 20.04+/Debian 11+）</li>
+            <li><strong>浏览器要求</strong>：Chrome 80+、Firefox 75+、Edge 80+、Safari 14+</li>
+            <li><strong>硬件要求</strong>：CPU双核以上，内存1GB以上，硬盘剩余空间≥10GB（用于媒体存储）</li>
+        </ul>
+
+        <h3>2. 详细安装步骤</h3>
+        <ol>
+            
+            <li>
+                <strong>海纳思系统直接 ssh 后台安装</strong>
+                <p>进入你的 ssh 后台终端</p>
+                <pre># apt update
+# apt install -y nas-media-player
+                <div class="warning">
+                    <strong>重要</strong>：请在安装过程中注意返回信息，确保正确安装完成
+                </div>
+            </li>
+            <li>
+                <strong>启动服务</strong>
+                <p>安装完成后，服务已经自动启动，可以通过命令查看状态：</p>
+                <pre>systemctl status nas-media-player</pre>
+                
+            </li>
+            <li>
+                <strong>访问系统</strong>
+                <p>1. 局域网访问：输入 <code>http://[服务器局域网IP]:8800</code>（如<code>http://192.168.1.100:8800</code>）<br>
+                2. 外网访问：需配置路由器端口映射（将8800端口映射到服务器内网IP），然后通过<code>http://[公网IP]:8800</code>访问</p>
+            </li>
+        </ol>
+
+        <h3>3. 服务自启动配置</h3>
+        <p>NAS重启后服务自动运行，已配置systemd服务：</p>
+        <pre>/etc/systemd/system/nas-media-player.service</pre>
+
+    </div>
+
+    <div class="section" id="basic">
+        <h2>🎬 基础功能使用</h2>
+        
+        <div class="feature">
+            <span class="feature-icon">▶️</span>
+            <div>
+                <h3>媒体播放操作</h3>
+                <ol>
+                    <li>登录系统后，左侧/上方的目录选择下拉框中选择媒体文件所在的子目录</li>
+                    <li>系统会自动扫描该目录下的所有支持格式媒体文件，并显示在媒体选择下拉框中</li>
+                    <li>选择要播放的文件：
+                        <ul>
+                            <li>方式一：直接点击媒体选择下拉框中的目标文件</li>
+                            <li>方式二：双击媒体列表中的文件（若界面支持列表视图）</li>
+                        </ul>
+                    </li>
+                    <li>播放控制：
+                        <ul>
+                            <li>视频/音频：使用播放器内置控件进行播放/暂停、进度拖拽、音量调节、全屏切换</li>
+                            <li>图片：点击图片区域可查看下一张/上一张，或使用键盘方向键切换</li>
+                        </ul>
+                    </li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="feature">
+            <span class="feature-icon">🔄</span>
+            <div>
+                <h3>媒体切换功能</h3>
+                <ul>
+                    <li><strong>上一个/下一个切换</strong>：点击播放器下方的「上一个」「下一个」按钮，或使用键盘快捷键（左箭头/右箭头）</li>
+                    <li><strong>直接选择切换</strong>：从「选择媒体」下拉框中直接选择目标文件，播放器会立即加载并播放</li>
+                    <li><strong>自动连播功能</strong>：视频/音频文件播放结束后，系统会自动加载并播放当前目录下的下一个文件（图片文件不支持自动连播）</li>
+                    <li><strong>目录切换记忆</strong>：切换目录后，系统会记忆上次在该目录中播放的文件位置</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="feature">
+            <span class="feature-icon">📊</span>
+            <div>
+                <h3>媒体信息查看</h3>
+                <p>播放媒体时，页面下方的信息栏会实时显示：</p>
+                <ul>
+                    <li>当前播放文件的完整名称（含扩展名）</li>
+                    <li>媒体类型标识（📹视频 / 🎵音频 / 🖼️图片）</li>
+                    <li>当前目录下的媒体文件总数及已播放数量</li>
+                    <li>文件大小信息（部分格式支持）</li>
+                    <li>当前播放进度百分比</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="section" id="advanced">
+        <h2>⚙️ 高级功能使用</h2>
+        
+        <h3>加密目录访问控制</h3>
+        <ol>
+            <li>
+                <strong>访问加密目录</strong>
+                <ul>
+                    <li>当选择带有密码保护的目录时，系统会自动弹出密码验证弹窗</li>
+                    <li>在弹窗中输入该目录的访问密码，点击「确认」按钮</li>
+                    <li>密码验证成功后，弹窗关闭并加载该目录下的媒体文件列表</li>
+                </ul>
+            </li>
+            <li>
+                <strong>密码有效期</strong>
+                <ul>
+                    <li>验证成功后，浏览器会保存认证Cookie，有效期为<strong>1小时</strong></li>
+                    <li>有效期内无需重复输入密码即可访问该加密目录及其子目录</li>
+                    <li>关闭浏览器或清除Cookie后，需重新验证密码</li>
+                </ul>
+            </li>
+            <li>
+                <strong>退出加密目录访问</strong>
+                <ul>
+                    <li>方式一：关闭当前浏览器窗口/标签页</li>
+                    <li>方式二：清除浏览器Cookie（找到名称以<code>auth_</code>开头的Cookie并删除）</li>
+                    <li>方式三：等待1小时Cookie自动过期</li>
+                </ul>
+            </li>
+        </ol>
+
+        <div class="warning">
+            <strong>安全警告</strong>：<br>
+            1. 请勿将加密目录密码告知无关人员<br>
+            2. 建议定期更换重要目录的访问密码<br>
+            3. 公共网络环境下使用后请及时退出加密目录访问
+        </div>
+    </div>
+
+    <div class="section" id="manage">
+        <h2>📁 目录与文件管理</h2>
+        
+        <h3>1. 目录创建与管理</h3>
+        <ol>
+            <li>
+                <strong>创建新子目录</strong>
+                <ol>
+                    <li>在页面下方「创建新目录」区域操作：</li>
+                    <li>选择<strong>父目录</strong>：从下拉框中选择新目录的上级目录（只能选择已存在的非加密目录或已验证的加密目录）</li>
+                    <li>输入<strong>新目录名称</strong>：仅支持字母、数字、下划线、中横线，长度2-30字符，不能包含特殊符号（如/ \ : * ? " < > |）</li>
+                    <li>（可选）设置<strong>目录访问密码</strong>：输入6-16位密码（建议包含字母+数字），留空则不加密</li>
+                    <li>点击「创建目录」按钮，系统会提示创建结果</li>
+                </ol>
+            </li>
+            <li>
+                <strong>目录命名规则</strong>
+                <ul>
+                    <li>不能与同级目录重名</li>
+                    <li>不能以点号（.）开头（避免创建隐藏目录）</li>
+                    <li>建议使用清晰的命名便于管理（如「电影-科幻」「音乐-流行」「照片-2025」）</li>
+                </ul>
+            </li>
+        </ol>
+
+        <h3>2. 文件上传操作</h3>
+        <ol>
+            <li>
+                <strong>基础上传步骤</strong>
+                <ol>
+                    <li>在「文件上传」区域选择<strong>目标目录</strong>：从下拉框中选择要上传到的子目录（<span class="restriction">注意：主目录（根目录）不支持文件上传，必须选择子目录</span>）</li>
+                    <li>点击「选择文件」按钮，在弹出的文件选择窗口中选择要上传的媒体文件（单次可选择多个文件）</li>
+                    <li>确认文件选择后，点击「上传」按钮开始上传</li>
+                    <li>上传过程中可查看：
+                        <ul>
+                            <li>进度条：显示当前文件的上传进度</li>
+                            <li>速度显示：实时上传速度（如1.2MB/s）</li>
+                            <li>剩余时间：预估完成时间</li>
+                            <li>文件列表：当前上传的文件名及大小</li>
+                        </ul>
+                    </li>
+                    <li>上传完成后，系统会提示「上传成功」，并自动刷新目标目录的媒体列表</li>
+                </ol>
+            </li>
+            <li>
+                <strong>支持的文件格式</strong>
+                <ul>
+                    <li><strong>视频文件</strong>：mp4、avi、mkv、mov、flv、wmv、m4v、mpeg、mpg</li>
+                    <li><strong>音频文件</strong>：mp3、wav、flac、aac、m4a、ogg、wma、ape</li>
+                    <li><strong>图片文件</strong>：jpg、jpeg、png、gif、bmp、webp、tiff、tif</li>
+                </ul>
+                <div class="note">
+                    <strong>提示</strong>：建议优先使用通用格式（如mp4视频、mp3音频、jpg/png图片），兼容性最佳
+                </div>
+            </li>
+            <li>
+                <strong>加密目录上传</strong>
+                <ol>
+                    <li>选择加密目录作为目标上传目录</li>
+                    <li>若未验证该目录密码，系统会先弹出密码验证弹窗</li>
+                    <li>输入正确密码并验证通过后，方可进行上传操作</li>
+                    <li>上传完成后，文件会保存在加密目录内，仅授权用户可访问</li>
+                </ol>
+            </li>
+            <li>
+                <strong>上传限制与注意事项</strong>
+                <ul>
+                    <li><span class="restriction">主目录（根目录）禁止上传文件</span>：所有文件必须上传到子目录中，便于分类管理</li>
+                    <li>单文件大小限制：默认无硬性限制（受服务器磁盘空间和网络带宽影响），建议单文件不超过2GB（大文件推荐分卷压缩后上传）</li>
+                    <li>批量上传数量：建议单次上传不超过10个文件，避免浏览器卡顿</li>
+                    <li>网络要求：上传大文件时建议使用有线网络（WiFi可能因信号不稳定导致上传中断）</li>
+                    <li>文件覆盖规则：若上传的文件名与目标目录中现有文件重名，会直接覆盖原有文件（请谨慎操作）</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+
+    <div class="section" id="faq">
+        <h2>❓ 常见问题解答</h2>
+        
+        <table>
+            <tr>
+                <th width="30%">问题</th>
+                <th>解答</th>
+            </tr>
+            <tr>
+                <td>为什么主目录不能上传文件？</td>
+                <td>为了便于媒体文件分类管理，系统设计为仅允许在子目录中上传文件，避免主目录文件杂乱无章，同时降低误操作风险。</td>
+            </tr>
+            <tr>
+                <td>支持哪些媒体格式？</td>
+                <td>视频：mp4、avi、mkv、mov等；音频：mp3、wav、flac等；图片：jpg、png、gif等。具体兼容性取决于浏览器，推荐使用mp4/mp3/jpg/png等通用格式。</td>
+            </tr>
+            <tr>
+                <td>如何修改媒体根目录？</td>
+                <td>编辑后端主文件（/opt/nas-media-player/main.py）中的<code>VIDEO_ROOT</code>变量，修改为新的目录路径，保存后重启服务即可生效（需确保新目录有读写权限）。</td>
+            </tr>
+            <tr>
+                <td>加密目录的密码忘记了怎么办？</td>
+                <td>直接删除该目录下的<code>/opt/nas-media-player/dir_passwords.json</code>文件（隐藏文件），删除后该目录将失去密码保护，可重新设置新密码。</td>
+            </tr>
+            <tr>
+                <td>可以在手机/平板上使用吗？</td>
+                <td>可以，系统支持移动端适配，使用手机/平板的现代浏览器访问<code>http://[服务器IP]:8800</code>即可，操作逻辑与电脑端一致。</td>
+            </tr>
+            <tr>
+                <td>上传的文件在哪里可以找到？</td>
+                <td>上传的文件会保存在服务器的<code>VIDEO_ROOT</code>配置目录下的对应子目录中，可直接通过文件管理器访问服务器上的该目录查看。</td>
+            </tr>
+            <tr>
+                <td>为什么部分视频文件无法播放？</td>
+                <td>可能原因：1. 浏览器不支持该视频编码格式；2. 文件损坏；3. 缺少FFmpeg组件。建议安装FFmpeg或转换视频格式为mp4（H.264编码）。</td>
+            </tr>
+            <tr>
+                <td>如何修改服务端口（非8800）？</td>
+                <td>启动服务时修改端口参数，如<code>/opt/nas-media-player/main.py</code>（改为8888端口），同时需确保新端口未被占用且防火墙已开放。</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section" id="troubleshoot">
+        <h2>🛠️ 故障排除</h2>
+        
+        <h3>1. 无法访问系统（页面无法打开）</h3>
+        <ul>
+            <li>检查服务是否正常运行：
+                <ul>
+                    <li>Linux：<code>sudo systemctl status nas-media-player</code> 或<code>ps aux | grep uvicorn</code></li>
+
+                </ul>
+            </li>
+            <li>确认端口8800是否被占用：
+                <ul>
+                    <li>Linux：<code>netstat -tulpn | grep 8800</code> 或 <code>lsof -i:8800</code></li>
+
+                </ul>
+            </li>
+            <li>检查防火墙设置：
+                <ul>
+                    <li>Linux：确保ufw/iptables已开放8800端口（<code>sudo ufw allow 8800</code>）</li>
+                    <li>路由器：外网访问需在路由器中配置端口映射（8800端口映射到服务器内网IP）</li>
+                </ul>
+            </li>
+            <li>确认访问地址是否正确：应为<code>http://[服务器IP]:8800</code>，注意区分http/https（默认使用http）</li>
+        </ul>
+
+        <h3>2. 媒体文件无法播放</h3>
+        <ul>
+            <li>检查文件路径：确认文件存在于配置的媒体目录中，且路径中无中文/特殊字符（部分系统对中文路径支持不佳）</li>
+            <li>检查文件权限：需确保文件有读权限（<code>chmod 644 [文件名]</code>）</li>
+            <li>检查文件完整性：重新上传文件或在本地验证文件是否可正常播放</li>
+            <li>查看浏览器控制台错误：按F12打开开发者工具，切换到Console标签，查看具体错误信息（如格式不支持、跨域问题等）</li>
+            <li>尝试更换浏览器：部分格式在特定浏览器中兼容性较差，建议使用Chrome测试</li>
+        </ul>
+
+        <h3>3. 无法上传文件</h3>
+        <ul>
+            <li>确认是否选择了子目录：<span class="restriction">主目录不支持上传，必须选择子目录</span></li>
+            <li>检查目标目录权限：Linux需确保目录有写权限（<code>chmod 755 [目录名]</code>）</li>
+            <li>检查文件大小：若文件过大（如超过10GB），可能因网络或服务器配置导致上传失败，建议分卷上传</li>
+            <li>检查网络连接：上传过程中网络中断会导致失败，可尝试缩短上传文件大小或更换网络</li>
+            <li>加密目录上传失败：确认已正确输入密码并通过验证，Cookie未过期</li>
+        </ul>
+
+        <h3>4. 加密目录验证失败</h3>
+        <ul>
+            <li>确认输入的密码是否正确（区分大小写）</li>
+            <li>清除浏览器Cookie后重新验证：打开浏览器设置→隐私和安全→清除浏览数据→选择Cookie和其他网站数据，清除后重新访问</li>
+            <li>检查<code>/opt/nas-media-player/dir_passwords.json</code>文件：确认加密目录下的<code>dir_passwords.json</code>文件存在且格式正确（由系统自动生成，请勿手动修改）</li>
+            <li>验证服务器时间：若服务器时间与客户端时间差异过大（超过1小时），可能导致Cookie验证失败，需同步服务器时间</li>
+        </ul>
+
+        <h3>5. 创建目录失败</h3>
+        <ul>
+            <li>检查目录名称：是否包含特殊字符、长度是否符合要求（2-30字符）</li>
+            <li>检查父目录权限：是否有在父目录中创建子目录的权限</li>
+            <li>检查目录是否重名：同级目录中是否已存在同名目录</li>
+            <li>检查磁盘空间：服务器磁盘是否已满，无剩余空间无法创建新目录</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>📞 技术支持</h2>
+        <p>如遇到使用问题或功能建议，请通过以下方式获取支持：</p>
+        <ul>
+            <li><strong>邮箱支持</strong>：teasiu@qq.com</li>
+            <li><strong>社区论坛</strong>：NAS媒体播放器官方论坛（bbs.histb.com）</li>
+
+        </ul>
+        <p style="margin-top: 25px; text-align: center; color: #666; font-size: 1.1em;">
+            © 2025 海纳思 版权所有 | 保留所有权利
+        </p>
+    </div>
+</body>
+</html>
+
