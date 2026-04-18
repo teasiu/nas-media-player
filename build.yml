@@ -1,0 +1,78 @@
+# .github/workflows/build.yml
+# 推送 tag（如 v1.0.0）时自动为三种架构打包并发布 Release
+
+name: Build Multi-Arch Binaries
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:   # 支持手动触发
+
+jobs:
+  build:
+    name: Build ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            platform: linux/amd64
+            python-arch: x64
+          - arch: arm64
+            platform: linux/arm64
+            python-arch: arm64
+          - arch: armhf
+            platform: linux/arm/v7
+            python-arch: arm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Build binary in Docker
+        run: |
+          docker run --rm \
+            --platform ${{ matrix.platform }} \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
+            python:3.11-slim \
+            bash -c "
+              set -e
+              apt-get update -qq && apt-get install -y -q binutils
+              pip install --upgrade pip -q
+              pip install pyinstaller fastapi 'uvicorn[standard]' aiofiles \
+                  pydantic python-multipart httptools -q
+              pyinstaller nas-media-player.spec --clean --noconfirm
+              mkdir -p releases
+              cp dist/nas-media-player releases/nas-media-player-${{ matrix.arch }}
+              chmod +x releases/nas-media-player-${{ matrix.arch }}
+            "
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nas-media-player-${{ matrix.arch }}
+          path: releases/nas-media-player-${{ matrix.arch }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: releases/
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: releases/*
+          generate_release_notes: true

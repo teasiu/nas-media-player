@@ -1,1286 +1,879 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NAS 轻量媒体播放器</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: "Microsoft YaHei", Arial, sans-serif; max-width: 1400px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
-        /* Logo样式 */
-        .logo-container {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .logo {
-            max-width: 200px;
-            height: auto;
-            display: inline-block;
-            /* 可选：添加阴影增强视觉效果 */
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-            border-radius: 8px;
-            padding: 5px;
-            background: white;
-        }
-        h1 { color: #333; text-align: center; margin-bottom: 10px; }
-        .subtitle { color: #4285F4; text-align: center; margin-bottom: 30px; font-size: 18px; }
-        .subtitle a { color: #4285F4; text-decoration: none; }
-        .subtitle a:hover { text-decoration: underline; }
-        
-        /* 媒体容器优化 */
-        .media-container { 
-            width: 100%; 
-            background: #000; 
-            border-radius: 8px; 
-            overflow: hidden; 
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 600px;
-            position: relative;
-        }
-        .media-content {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        }
-        video, audio { 
-            width: 100%; 
-            height: auto; 
-            max-height: 80vh;
-            display: none;
-            background: #000;
-        }
-        img { 
-            max-width: 100%; 
-            max-height: 80vh; 
-            object-fit: contain; 
-            display: none;
-            background: #000;
-        }
-        
-        /* 加载状态 */
-        .loading { 
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            text-align: center; 
-            color: #4285F4; 
-            z-index: 10;
-            background: rgba(0,0,0,0.7);
-            padding: 20px 30px;
-            border-radius: 8px;
-        }
-        .loading-spinner {
-            border: 4px solid rgba(66, 133, 244, 0.3);
-            border-radius: 50%;
-            border-top: 4px solid #4285F4;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .control-panel { margin: 20px 0; padding: 15px; background: #fff; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .select-group { display: inline-block; margin-right: 20px; margin-bottom: 15px; vertical-align: top; }
-        label { font-weight: bold; color: #555; margin-right: 10px; }
-        select, input[type="text"], input[type="file"], input[type="password"] { 
-            padding: 10px 15px; 
-            font-size: 16px; 
-            border: 1px solid #ddd; 
-            border-radius: 4px; 
-            outline: none;
-            min-width: 250px;
-        }
-        select:focus, input[type="text"]:focus, input[type="password"]:focus { border-color: #4285F4; box-shadow: 0 0 0 2px rgba(66,133,244,0.2); }
-        
-        .btn-group { display: inline-block; }
-        button { 
-            padding: 10px 20px; 
-            font-size: 16px; 
-            margin-right: 10px; 
-            border: none; 
-            border-radius: 4px; 
-            cursor: pointer; 
-            transition: all 0.3s;
-        }
-        .btn-primary { background: #4285F4; color: white; }
-        .btn-primary:hover { background: #3367D6; }
-        .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
-        .btn-secondary { background: #28a745; color: white; }
-        .btn-secondary:hover { background: #218838; }
-        .btn-danger { background: #dc3545; color: white; }
-        .btn-danger:hover { background: #c82333; }
-        
-        .media-info { margin-top: 15px; color: #666; font-size: 14px; }
-        .dir-navigation { margin: 10px 0; padding: 10px; background: #f9f9f9; border-radius: 4px; }
-        
-        /* 上传区域 */
-        .upload-section { 
-            margin: 30px 0; 
-            padding: 20px; 
-            background: #fff; 
-            border-radius: 8px; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
-            border-top: 3px solid #4285F4;
-        }
-        .upload-section h2 { 
-            color: #333; 
-            margin-bottom: 20px; 
-            padding-bottom: 10px; 
-            border-bottom: 1px solid #eee;
-        }
-        .upload-form { 
-            display: flex; 
-            flex-wrap: wrap; 
-            gap: 15px; 
-            align-items: flex-end;
-        }
-        .form-row { 
-            flex: 1; 
-            min-width: 250px;
-        }
-        
-        /* 进度条 */
-        .upload-progress { 
-            margin-top: 15px; 
-            display: none;
-        }
-        .progress-container {
-            width: 100%;
-            height: 8px;
-            background-color: #e9ecef;
-            border-radius: 4px;
-            overflow: hidden;
-            box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
-        }
-        .progress-bar {
-            height: 100%;
-            background: linear-gradient(90deg, #4285F4, #3367D6);
-            border-radius: 4px;
-            width: 0%;
-            transition: width 0.2s ease-in-out;
-            position: relative;
-        }
-        .progress-bar::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: linear-gradient(
-                to right,
-                rgba(255,255,255,0.1) 0%,
-                rgba(255,255,255,0.3) 50%,
-                rgba(255,255,255,0.1) 100%
-            );
-            background-size: 200% 100%;
-            animation: shimmer 1.5s infinite;
-            opacity: 0.7;
-        }
-        @keyframes shimmer {
-            0% { background-position: -200% 0; }
-            100% { background-position: 200% 0; }
-        }
-        .progress-stats {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 8px;
-            font-size: 14px;
-            color: #666;
-        }
-        .speed-indicator {
-            color: #4285F4;
-            font-weight: bold;
-        }
-        
-        /* 消息提示 */
-        .message { 
-            margin-top: 15px; 
-            padding: 12px 15px; 
-            border-radius: 4px; 
-            display: none;
-            font-size: 14px;
-        }
-        .success { 
-            background: #d4edda; 
-            color: #155724; 
-            border: 1px solid #c3e6cb;
-        }
-        .error { 
-            background: #f8d7da; 
-            color: #721c24; 
-            border: 1px solid #f5c6cb;
-        }
-        .info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border: 1px solid #bee5eb;
-        }
-        
-        .create-dir-form {
-            margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px dashed #ddd;
-        }
-        .file-info {
-            margin-top: 10px;
-            font-size: 13px;
-            color: #666;
-        }
-        
-        /* 媒体类型标签 */
-        .media-type-badge {
-            display: inline-block;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            margin-left: 10px;
-        }
-        .type-video {
-            background-color: #e3f2fd;
-            color: #0d47a1;
-        }
-        .type-image {
-            background-color: #e8f5e9;
-            color: #1b5e20;
-        }
-        .type-audio {
-            background-color: #fff3e0;
-            color: #e65100;
-        }
-        
-        /* 密码保护模态框 */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.7);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            display: none;
-        }
-        .modal {
-            background: white;
-            padding: 30px;
-            border-radius: 8px;
-            width: 90%;
-            max-width: 400px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-        }
-        .modal h3 {
-            margin-bottom: 20px;
-            color: #333;
-            text-align: center;
-        }
-        .modal-form {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
-        .modal-footer {
-            display: flex;
-            justify-content: flex-end;
-            gap: 10px;
-            margin-top: 20px;
-        }
-        .protected-badge {
-            display: inline-block;
-            padding: 2px 6px;
-            background: #ffeb3b;
-            color: #333;
-            font-size: 12px;
-            border-radius: 3px;
-            margin-left: 5px;
-        }
-        /* 支持格式说明 */
-        .supported-formats {
-            margin: 20px 0;
-            padding: 15px;
-            background: #f0f7ff;
-            border-left: 4px solid #4285F4;
-            border-radius: 4px;
-            color: #333;
-            font-size: 14px;
-            white-space: normal;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-        }
-        .supported-formats strong {
-            color: #4285F4;
-        }
-        /* 响应式优化 */
-        @media (max-width: 768px) {
-            .media-container {
-                min-height: 400px;
-            }
-            .select-group {
-                display: block;
-                margin-right: 0;
-                margin-bottom: 15px;
-            }
-            .upload-form {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            select, input[type="text"], input[type="password"] {
-                min-width: 100%;
-                width: 100%;
-            }
-            .supported-formats {
-                font-size: 13px;
-                padding: 12px;
-            }
-            .logo {
-                max-width: 150px;
-            }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NAS 轻量媒体播放器</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: "Microsoft YaHei", Arial, sans-serif; max-width: 1400px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+
+.logo-container { text-align: center; margin-bottom: 20px; }
+.logo {
+  max-width: 200px; height: auto; display: inline-block;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  border-radius: 8px; padding: 5px; background: white;
+}
+
+h1 { color: #333; text-align: center; margin-bottom: 10px; }
+.subtitle { color: #4285F4; text-align: center; margin-bottom: 30px; font-size: 18px; }
+.subtitle a { color: #4285F4; text-decoration: none; }
+.subtitle a:hover { text-decoration: underline; }
+
+/* 媒体容器 */
+.media-container {
+  width: 100%; background: #000; border-radius: 8px; overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  display: flex; justify-content: center; align-items: center;
+  min-height: 600px; position: relative;
+}
+.media-content {
+  width: 100%; height: 100%;
+  display: flex; justify-content: center; align-items: center; padding: 20px;
+}
+video, audio {
+  width: 100%; height: auto; max-height: 80vh; display: none; background: #000;
+}
+img {
+  max-width: 100%; max-height: 80vh; object-fit: contain; display: none; background: #000;
+}
+
+/* 加载状态 */
+.loading {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center; color: #4285F4; z-index: 10;
+  background: rgba(0,0,0,0.7); padding: 20px 30px; border-radius: 8px;
+  display: none; /* ← 修复：只用 display:none，不重复声明 */
+}
+.loading-spinner {
+  border: 4px solid rgba(66,133,244,0.3); border-radius: 50%;
+  border-top: 4px solid #4285F4; width: 40px; height: 40px;
+  animation: spin 1s linear infinite; margin: 0 auto 15px;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+.control-panel {
+  margin: 20px 0; padding: 15px; background: #fff;
+  border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+}
+.select-group { display: inline-block; margin-right: 20px; margin-bottom: 15px; vertical-align: top; }
+label { font-weight: bold; color: #555; margin-right: 10px; }
+select, input[type="text"], input[type="file"], input[type="password"] {
+  padding: 10px 15px; font-size: 16px; border: 1px solid #ddd;
+  border-radius: 4px; outline: none; min-width: 250px;
+}
+select:focus, input[type="text"]:focus, input[type="password"]:focus {
+  border-color: #4285F4; box-shadow: 0 0 0 2px rgba(66,133,244,0.2);
+}
+
+.btn-group { display: inline-block; }
+button {
+  padding: 10px 20px; font-size: 16px; margin-right: 10px;
+  border: none; border-radius: 4px; cursor: pointer; transition: all 0.3s;
+}
+.btn-primary { background: #4285F4; color: white; }
+.btn-primary:hover { background: #3367D6; }
+.btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+.btn-secondary { background: #28a745; color: white; }
+.btn-secondary:hover { background: #218838; }
+.btn-danger { background: #dc3545; color: white; }
+.btn-danger:hover { background: #c82333; }
+
+.media-info { margin-top: 15px; color: #666; font-size: 14px; }
+.dir-navigation { margin: 10px 0; padding: 10px; background: #f9f9f9; border-radius: 4px; }
+
+/* 上传区域 */
+.upload-section {
+  margin: 30px 0; padding: 20px; background: #fff;
+  border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  border-top: 3px solid #4285F4;
+}
+.upload-section h2 {
+  color: #333; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #eee;
+}
+.upload-form { display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end; }
+.form-row { flex: 1; min-width: 250px; }
+
+/* 进度条 */
+.upload-progress { margin-top: 15px; display: none; }
+.progress-container {
+  width: 100%; height: 8px; background-color: #e9ecef;
+  border-radius: 4px; overflow: hidden; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+}
+.progress-bar {
+  height: 100%; background: linear-gradient(90deg, #4285F4, #3367D6);
+  border-radius: 4px; width: 0%; transition: width 0.2s ease-in-out; position: relative;
+}
+.progress-bar::after {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(to right, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.3) 50%, rgba(255,255,255,0.1) 100%);
+  background-size: 200% 100%; animation: shimmer 1.5s infinite; opacity: 0.7;
+}
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.progress-stats {
+  display: flex; justify-content: space-between;
+  margin-top: 8px; font-size: 14px; color: #666;
+}
+.speed-indicator { color: #4285F4; font-weight: bold; }
+
+/* 消息提示 */
+.message {
+  margin-top: 15px; padding: 12px 15px; border-radius: 4px;
+  display: none; font-size: 14px;
+}
+.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+.info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+
+.create-dir-form {
+  margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ddd;
+}
+.file-info { margin-top: 10px; font-size: 13px; color: #666; }
+
+/* 媒体类型标签 */
+.media-type-badge {
+  display: inline-block; padding: 3px 8px; border-radius: 4px;
+  font-size: 12px; margin-left: 10px;
+}
+.type-video { background-color: #e3f2fd; color: #0d47a1; }
+.type-image { background-color: #e8f5e9; color: #1b5e20; }
+.type-audio { background-color: #fff3e0; color: #e65100; }
+
+/* 密码保护模态框 */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7);
+  display: none; /* ← 修复：只保留 display:none，去掉多余的 display:flex */
+  justify-content: center; align-items: center; z-index: 1000;
+}
+.modal {
+  background: white; padding: 30px; border-radius: 8px;
+  width: 90%; max-width: 400px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+.modal h3 { margin-bottom: 20px; color: #333; text-align: center; }
+.modal-form { display: flex; flex-direction: column; gap: 15px; }
+.modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+.protected-badge {
+  display: inline-block; padding: 2px 6px; background: #ffeb3b;
+  color: #333; font-size: 12px; border-radius: 3px; margin-left: 5px;
+}
+
+/* 支持格式说明 */
+.supported-formats {
+  margin: 20px 0; padding: 15px;
+  background: #f0f7ff; border-left: 4px solid #4285F4; border-radius: 4px;
+  color: #333; font-size: 14px; word-wrap: break-word;
+}
+.supported-formats strong { color: #4285F4; }
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .media-container { min-height: 400px; }
+  .select-group { display: block; margin-right: 0; margin-bottom: 15px; }
+  .upload-form { flex-direction: column; align-items: stretch; }
+  select, input[type="text"], input[type="password"] { min-width: 100%; width: 100%; }
+  .supported-formats { font-size: 13px; padding: 12px; }
+  .logo { max-width: 150px; }
+}
+</style>
 </head>
 <body>
 
-    <!-- 居中Logo容器 -->
-    <div class="logo-container">
-        <img class="logo" src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+CjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+CjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iTGF5ZXJfMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgeD0iMHB4IiB5PSIwcHgiIHdpZHRoPSIxNDJweCIgaGVpZ2h0PSIxMTNweCIgdmlld0JveD0iMCAwIDE0MiAxMTMiIGVuYWJsZS1iYWNrZ3JvdW5kPSJuZXcgMCAwIDE0MiAxMTMiIHhtbDpzcGFjZT0icHJlc2VydmUiPiAgPGltYWdlIGlkPSJpbWFnZTAiIHdpZHRoPSIxNDIiIGhlaWdodD0iMTEzIiB4PSIwIiB5PSIwIgogICAgaHJlZj0iZGF0YTppbWFnZS9wbmc7YmFzZTY0LGlWQk9SdzBLR2dvQUFBQU5TVWhFVWdBQUFJNEFBQUJ4Q0FNQUFBQTA1MnYyQUFBQUJHZEJUVUVBQUxHUEMveGhCUUFBQUNCalNGSk4KQUFCNkpRQUFnSU1BQVBuL0FBQ0E2UUFBZFRBQUFPcGdBQUE2bUFBQUYyK1NYOFZHQUFBQy9WQk1WRVgvLy8vLy8vLy8vLzM3NHZYKwovZnYvL1BuOC92MzYvZnY5L3ZuNi8vejUvLzM3Ly8vOC9mLysvdi84L1B6OS9QcjgvUDc5Ly83OS8vdi8vL3YvL2Y3Ky9QMzQvZi80Ci8vL3E4L2ZNMHRla3NMeHdoWnBOYUg4L1VHSXhSRjAwU21kQlduRlpjb21LbksyN3h0RGY1T2piM3VFYk9sY0JJMFFDSUQwQkpVa0UKSjAwQkhrSUtMazhrUldWZmVJL3Q5LzBGS0VJQktWRUZMRk1ITDFJS01GUUlMbElITFZJSkxWQUlMMDhGTFV3Z1BWL1MydUhxN081NgpqWjRkTmswR0tWUUpLbEVLTFZNSU1WSUlMVTBHTDBzSEkwNUVZMzJDbEtVVE5GQUpMMVRDemRVR0xGRUZMbEVNTGxNSEtrL2Y3UFExClVXOEpLMU1JTGxNTEpVVWRORklLTEZBUExFb01MMVVITFZRQ0xWRzR3Y2tMTGxNSkxsWUtNRlZvZjVNRkwxTUVMRS85Ky96Ly8vaXQKdThZRExsankvUDRHTWxuNCt2eng5Zk1tUFZRM1YzUU9NRlVMTVZZS01GY0pNVlVLTDFvTk1GWUhNbFVDTDFVSUwxa0xNVmdRTGxvTQpMRmdLTWxVTE0xWUdNbFFOTVZVWU8xME1NVnNOTDFnSUoxVVVOMW82VzNpWXA3VG42ZXZ5OHZIMTlQVDI5dmJ4OGU4TU1sY3BUR3hTCmJZYjcrL3o1K2ZvSUtsWU9NVmY3Ky9rY1FXUU9NbFlKTTFrdFQyeno4dk1JTTFiMzkvZjE5Zk1MTWxrTE0xVDQ5L1VOTkZ2ejlQVVAKTlZvT05GZ1JPVjRsU1dzMFVHWUpORmNGTTFFUE4xdEJYbm43L2Z3eFVtNFZQV1B1N3U4NFVtMzQrUGtNTkZjTk0xajYrdmNKTTFzTwpNVmtMTUZvUE1sZ01NMW9NTkZnUE1scjE5dmtMTWxzS05WZ05OVmdlUldrTk5sWVFNVjBPTVZFUk0xME5OVmtOTkZVS05Gb3ZVM0VRCk0xVUxObGtJTWx3S05sMEpOVno4L1BjTE5Wc0lObGdRTjE0UU9GZ05NbHdNTVYwSk5Wb09OVndJTkZrZFJWNE5NMTRPT0Y0SU5sb0gKTlZrTE5WMFBPbDBMTlY4S05sc0pOMkFMTjE0TU5sdzFWV3dKTmwwTk4xOE9OVjROTjEwTk9Gc01ObUVPTldFTU9GMExPRjhNTjFvTApPbUVRTzJJTk9WNE9PR0FQT1Z3Tk9HSU5PV0FPT21FUE9WOE9PbDhSTjJFR09GczFWV29PT1dNTk9tRUtQVndOTzE4Tk8yVU1QR01HCk1HQURNMXNITjFzSE4xMTlpWkgzQUFBQUFYUlNUbE1BUU9iWVpnQUFBQUZpUzBkRUFJZ0ZIVWdBQUFBSmNFaFpjd0FBQ3hNQUFBc1QKQVFDYW5CZ0FBQUFIZEVsTlJRZm5CQUVORWhZT1VSYnVBQUFaSVVsRVFWUm8zdTJiRFZ4VDU3M0g5eHlPaUNZbjc2YzFnYnVaRUliUgpFdHVDVVF1c2dyMVFhSzJWYm8yTGhBNVphK2NDaGpWYlRrR3VCS0hoWlpoR3dmaEd2QlNzemtSYWM2cVJPVEhPSzJQTVdxL1pCUjNzClFuQ3dpcFFFZHJlNzNiZlAvWjlBQW1wN0s3Mno5M00vSDM5NGtwenpQT2M1MytmLzhqelB5WWxmK2NwRFBkUkRQZFFjaE1MQ1lJdjQKdjBTSndPZEZ6bzlhc0dEQndvVXNOcHZGSmpqei84K1FJakNjaTdONHhFSitKSUhqQ0xIWmJCNHVZUE9Ga1FUMjVjTVFySVVzbGtqSQpRaGcyNHlzUVFSS0VnSVcrWEpoSDVqL0tZckhnNm92RWt1aVl2L2txNkd1THBiSllPUnpEQ0lUNGdpL1JRamppTXlnb1RyYjQ2L0ZMCjRoV0twVUVwbGkxN0xFRVp1eHdKRnJCdzlHVlppUEVJd2dUTEpYL3plTHppaVNjVGsxYW9WQ3JZVmo2MmF2WHExZkhMbmxJbUkwVGkKYk1HWEVkUVJpTTFFUzBycU41YkVQL0gwbXJTVjZXdlhyZ0tscjFyMURQT2lXdk8zOGZFWnNZZ1FRR3cvY0k4SkJmd0ZMT0hDekdmagpGYXZYcmwyNWF2WEt0YXFzRlN1QUkxMjFJdkd4bGF2V1B2YllxbFdLSlRGZ0llSlIzZ04ybUVqQTRpT1VuUkQvNUtyVno4RGY2dFZyClY2OWVOU1hBV0FXR1VxMEMzejJuV0pMS2h1UW5XUStTQnBGTVBrY3ZVenozSFBobXBZcTUvS3JuMDRNMDZTdGdiMFhpcWxXSnExVHIKbmxPOXNPeXJ5U3pFSm9nSFNFT0lXR2o5aTh0ZTJQRGNTbFdPS2lkSEJhOWdpaytYNGlVSndpSUo5b01LYUlFSUVaajRtNG9YdnJVbQpiVU9pNmxOQlZMTU9MMTBXRFZsSXNoOE1EWVlXQ0xEc2w1OTRXcjB5YmMyR2pUa2hxV1krQlVsVVUweXFEZDlXTFpQQ2tJZ3RmQkEwCkJBOG1KczNMaW1mUzB0STJyVm1UdUhJMnlEVFZ0RzJtanEvSVVnRVBRdk9KQjJDZmlFaFNoTEpmWHJyMm1jZlVhYmtiMWp6UFhEMUwKRzFhV2FwYU5HT1ZrSmFvMnFwYmtJWUlnLy9yNWpnbEYyUHB2TG4xbDdjcE5hVG1KYXphb2N1LzBsT29PbnpFdkt6WWtKdVorWjBrbQpZZ254L3oxUEJLUHdIb0xoaHZXMXBXbWIxcTFMVXozM2ltcERibTRPazFiQjRKMks0THVzbzBwTHkxMEJQRXMxS0pJbCtGK2g0REM2CmtJeUk2WGtuSWgrT0tCVzVTZXZVZ0pPbXlrcExUTXo1SE9VQ1VPTHphWXB2cm9jNVZmVEZ6WUlJZGlRZkZ5d1FDUEFvRVR1NG1CSnQKM293SzRyK2JDN1paRjdyY05FL3U5SjRLRHFSdHpFbFQzWTIxTEFQaE9QZUxqajR3K1FraWtRZ1NGRFlCVEpjRUJrc3NISC8xRzRyWAowdFlCejZ3cnJWQ3RTR1BFaEZCV3prYlZwaFVyWmhkUCtXMmpRb0kyNC9nWE13M0JaaEhNRW1MTG9oUzUvSFZZN09FQ3lBeGNnRVV2ClNVcGtMcTBPeGNZR0NKbkUwRTdPY3pCUXE1NS9aZU5HMVN3eFNKQmdUeTJQMmt4OEVSN3dzb0FmK1VoeTZ1THZ2YlFzUHY2WnJiSkYKQkxQOHhKRDg4YlhwU2V1K3IxNjNUaHRLYjUwMnQ3QW9LMG1kQkFleXRQQmhrNjVRblRVcithZWt6b3BQUlZGUlh5QzUwQUl3QjRwZAovUGdTeGRMVjIxNUpXdnVkK01laTF4Tkl5RWN4ajZlbnF4a2NkWGlrMFdvMzZkVnFOWU9pWTNhM0ZXcHpBZXB1bkt6aUh6eTdIdCtNCjVzeURXQXNGYUxsMHllcFhpbC9aK01ZMlEzRngrZzkvOUxjdjU4bGhUUkcvRm5DK3IvNytqSFVLczVLU3RJV0Z1UUREZk5KdEt0UW0KcVF1THRQZmdaQlUvbm9sRmllYUtneDVsYlJZbUp5eFphNlRTaTdUcjNnUzdGK24xUDFxamVGWXBYL3gwWVE1WUI0d1J4bEZyazdLSwpzdUJObTFYQ3VLdW9KTW1nM1hRUGpiWXdTZjFDNlNNWVNjd3R1U0pFanl6QWtyLzVVczZiUlVaakRsaW1zRGc5Zlh0Wm1mcEhmNmQ0CitYSDFHN2xGV1pCWTMxODNxOS9hSFUrVlMxTk5CY255aXAyVlZXL0pTb3FUTnFYZmFSbEc2OUxpQy9ETmN4eWFGL0JaMlBydktkYVoKYzZZalk4b0dhdlhHRFQvYW9NdlpDSE80T20wVC9PWG1ibUl1a2xSZGsxcVFYTVhtMVBLRVNFamdxQzV6UlhwUjdxWmNHTENobU5rMgpKYXBXd041ajZxVXhLR3B1T0lnRmR5T0w0MytzMWpHQkNmK01JQ1lTOU9ha2VyMVdaOURwa2d3R28wNnJLOUVaU3hJeU1ndmlxdW9RCm5wK2ZUKzdpMUhJNUpGZGowUnZVYnh0MWpMUTZuVUd2TnhyMWFpczBwRXQ4ZGpsR3pPbk9BbTRxTVpraVo1dEJyV1p3WnNsb3RScVQKU3ZUR0lrcW4xcXNOUmJyZFNrbnlIZzZaVDdCNElvZ0pMcGVkdnl1U0U1dGdMdFRweW5SR0NvajA5VkRSYURUb2trcEt0SWF5TEVVQgpjenMwSitQdzF6KzdwcUdCUVlGL1JtT0l4bENtWjdwcmdGWkxkSWFTM1htU3VDMjFHRTZTY0dmZXVETXVXNU9DMS9Md3ZhYnFvaEo5CmlhNGhxVWdYYk1HUXBOTlJhcjFOVzZRcjFLY3ZqVVlrTmdjYzdGRVdTbzEvczdnb2Zjb3llbjNZT21hR1NiZlBxTmNWbDBwTjhrcEUKQ2poSXRMOHVXU05UYmswNGtCQUhjOUxCekVOYWZWR1QvYW5ER1RYU3ZPalUxTlJvWlhtcDFxeDlRMi9VcWt1S1h2aDdXUGZjL3pJKwpJb3FGRm4zdk84M3ZGQnUxT3ZXMHBvSzVSRnVvVTVjeDI0dXA0aTIxUXJoZHdmR0syTlNZQkRobTBKYWFHZ2tlR1Z2NllreWVTUktiCkxPZlZjbW81ak1nVXplS2k5Q1NvcE45a1ZIM2pWWXdrNzk4NDJFSk1FLzltZWtOUkF5UGpMQlVYRzVPTURjMHRyYWFLL2NRUkxpZHkKdjF3Uy9lN1JmWWIwNXVLRzRxMlNLcHczajNjc0x1WDFLaExpZzgrZHorVUdjZWFqWGFaOWtBMUd5SXFpTjErRys4QjU5eDNMQ09lagp2T2UzNmQ2RVVEUXkzdGRxaTZaeENvMWFZM0ZUamVRWVFaSWlnbE9seWR1cU5ocTFoV3BEb2M0U0hZZEkzcTc1SkpkRGtQa3NYRVJnCkJHZGEzQ040WnBGQlcxU1VwQzFXRjc4VWkvRDduN2RRSklGKzhtMmJycmd3S1RTRUpVRWFKWldBeDNUcUhURUZiM0ZGbkVqV3dlVE0KMWgwNm1BdDBTZHFrYXFsRWZKd1VrU1NQRFdzUlBqbC9aK1dlUFpVN09WZ2tleDZQaE5Fb3BWV2RwSWZCMjFCVy9PWXlDU0xuM1M4Twp3Z20wcURUWDBXdzAyTXdoT1kyVXVWNXZzN1hVU1Biazg0OFFlS1ZHZWRpMno2eXptZDgySnlnbDhrcFlEQkVuVGxTOUx0YVlaQkM3CkdhMmdqRHlUSEdkemEvTnhqbVNIMldtbzF6dk1CcW8rWHNaSDg0VDNGOGNJbGpTRS9LVzI5QWF6N3IxUVF1bmZQMWxpdHBtcFZra0sKbXlCeDdIV05zclNzeEZ3R01KWWFVeHpKZ1h1V0NuRkJabDdNdXp0Y0JrTjl2Wmt5R0pnUlJ4OWRkWVROM1lWWHRKWVlqRTRqYmRZWApHVDlRWkNJMjk3NiswUkJ4U1JMdTc3T1hOQlNaS2JNK0ZNSTJzODVjYjZpV1ZUeUNjL25jS28yMHRLemVScFhZZG16TmpEMkY3VG9ZClY1QXAzVzFwZWsrdmM5a01VTmRHd1dhZzlFWkQ5SDVpUGtkVUdYMzZiV3U5emd4Rnh2ZCtxSWpHWUdYMytRTXpnbnRkY1AzQzJNWGYKb3VyTnpRME5WRWhXcys2UVVrd0tvempFM214bHFlMmtycUc1MmFLTVBjYmx5VFdwTWRVNksxRG96QlFGaDQwNnM5N3MxTkxOelZUegpickVRNStDOGdsS3FtZElERGxRcSs0QVpCMFVFZ1F2L1o2SW9FZ2tSdHNYMDFhVXZGRkVVclhNM2gyaE9tOTN2U2lyNU9JK1lMOCswCk5PanE5V2J6VnBsNDc1NDRrL0t3M1FaekFkUUZGK21ncnRscE05VHJ5dDR1b1pxYkV6UjFZTzBqMmRXVTFXMXNleHZHWnIzT2NGS1IKQjZzNG5JakVJMG5zczMwR0syR0UyS2FuRkQ5K281NHlObE1uZFdIak9NL2t4V0ZrdmdnL1pub1hJa0JyZHJhYVVvNW5aN2EybTVtQgoydEZzTmxNMnczc0dJMlYxR1psektZUFphRHRacnVHSWVFZHc4VllyRFpheVVycDZvMWxYVnIrbU5YazV3Z1FZTG9TN1V0R25XeWlDClFMZ0lFMjlWUEZsRzA3YjNxWDNRT1ZzSUowR3luNnpsNHZNMU5VWmJVWE94bzFVU2w1eVo4ZE5tYXdNVFlNMUdRRERDR3pQQk01K00KelRxOXNjR1NHbGZINXBGQTR6WmFLYU81bUlLWlhhY3ZLenU3OW1kUExVNk5sY1BpVndpWjgya0dpb2hDRU1LeWwxY1htYzl0TjRSQwpXR2ZZQjhPeW9WVnpndUNRSlBnSkRHV3pialZwVERFV3lrM1JOSVFFaEFyRUROWHNicWFwS1h2U2xNMWhUTWpMM292eU9VU2xwTnBnCnBaeVUyK2hvcG9LRHhudnZ2ZGZ3eXZNS3hZNk1naE93MUJDeCtQY2FhTDl3RnlMeUZCMzE5U2QxdG5ETU5MdVo2SlRLRWNGRGV6V3QKSngzbm5aNkV6SUxVQ3orbmFkclI0WEk2bTV4T204ZERPNXhOOUFHNncrbDBuT21nNkl1V0dKbTRVU1NxSmNqR1RJdmpiYnFEdXVodQpjbG5QME5BZHA5bnMrb2RMMXM2MjE1NVVQQ1Y3RmNmSXlIdFdZNzhRd3AydVZQSCt0cktUKzVxZFRucGFQM1YyMFllaUt6Q2NWN3RUClp2SDhzcU9ManBIbFdad2RiamROaDJ0MU9McVlOK3JNZVFhc2ZXdWVTWHo4QkJaNWhFU25ORFVkWjJ4dXA2T0pwcytmb2MyaE0raDkKNTgwMDVhQUtGUW14TUg2eTJYZnlDS013SEVuamJSOThVRzkydTh5TzhHbG56TjJweDBndUcwK1dYblE1SGE2bWpCaExWd2UwMzlIQgoySUx1b0drM3ZEZ2NZQk9uM2RLcXpKUWtIenVCQ0Z5QWlCT25Zdk1zNTVzb3Q4dlJTZE9laXpUZEhHclc3WURPbktGb3MvdEpSZDZqCk1BcmRzUnlMRUFKTmRQeXZ6R2ZPT0E4MXU1enVFSS9UZGNpMG4rQ3hhOFd0blpTRFBubHhSNmtaQ0tDdkRnb0F3QzVuS0FhbWFjZnUKREtWSmsxeEhjcmg4eE9ZVHFDNUZMS3NwcFR1c2RKT2JEcHJiNFFEeVVMdE9jeE9ZeW5iNi9aTnZMSDEzUFNJWHpyWVBQZzliVUJDLwo2V1JUay9NUW5CUDJBcHdYdlJQdElrNW9xajEwUjhlQjgyNmFnZ2lCVmgwUUpSMzBBZGc2ZnBXUUVXMFNWeHg3NndUbmVHUGp3V01wCjh1d0NXWFROdXhZbjdmWTQzZTVtYVBBODFlRjB6R3JZNlFMWDB1K2YzbTZtWERiRjErVm9vWWdYam1mK1BDRmE5R3lhK1FQekI3WVAKVHRJWHFURE54YndVR0QvM210cWRUSnYwQVdnVFFKem5MMW85SGtpc0pxckQxVkdhQVV1K1BKQXlUeW1OeVNpL1lIRTZ6b01Ob1o0YgpJQnhONXgyZTVpNkh3OVAwODQ2WmZqb2NEcDNUdHAyeVhmNlFYdnIxOWFoMnhqdzRqb2xxNHMyMkR6dHRWOXBPMjl4bndpZEo1VGpKCjNtdXl1QzQ2YkIyT2k0NnBobWlYR1JJSzNwMGRkQlBUWS9CdXNPZ01RRGN4SHp3ZlVXNDNYRHg0MUZOYWZ1RnRwM3RIZEl4bmhvWjIKdlgvWlpuT2RkdGxzbC9YeFgzc1ZzUVRUNjFVWXNMSHMrSDM2RDh2YVBKN09OcXVWb2wxbllLUndkTFhHd2JTdzMyU1p2a3FIbTU2cgpncGk3S3pRMDNXV3BNTTJLSFZkSU5wQWhYb213QmRPM3BsRTRpeFdqTUo4OTU3cnE4WGl1UUxMUzU4MFhmK2s4MlM0bWVGeVIrRER0CjlIUkF0cGtaaTh4TlRKaWZkRlh2ekc1OTBXMlhLTStFanRQMEhUZzJTbEVnaEhVV1E0TUpmeUZNZnJ6bzhybHpsOTJlb0t4V3NMN0wKNGNqY1QzSTRjVEZPWnJCejBCNEloN25pT0duSHZwKzZxMU9PNzBuZVhYMU04dlB3Y2RjTUR2T3kvWjEvZkZVbzRFLzVTb2hTSDI4NAplKzdhNWVZUVRwdlQ3UEpzaFdWVlpHT2VpL0k0emJRUm9DamJYSDFsbzh3ZE5tZDFTcHlNbTFmTmtyakN4N2R2M3c1RzJjN1loc0c1CjNCd3Z3MWhCSEJ3VFB2clZiK25PbnJ2c3VXcWQ0dkYwYm0ranZKSTZIcm1yb0JTQ3FSUE9OYmhzbnRPMnVjclQxa2Jid0M2ZVhkR0gKU2NuTThkTlRUVm10UVJ5Ynk1Yit2ZVdJK1E0VFk3R1ErT1VzOE5VNXQyM2FPQjUzVzV1dC9CZzZRbFNVZDNaMmV0cXVYcjNpdWZycgpmM0pmbmFQYzFwNnJ6Yit1ZnF2Z0tDZjZNSko0UXNldFlYbUNPTzREZEx3RVo2eURXR3hrVWpTY3ZYYnU3RlZYRUliUlZXdWJDWEU1CnRiS09Uay92MW93TFZLZlYxZGxwdlRKSGVUcXBydXVYZDFjVVhOZ1pYWDJ3d0hOUCtaVXBuRE9VKzRsV3hIempqQkVZcWxGc1Azdm8Kck92WFV6Q01oZHFja0ZaSDhMaHkrc3B1eWJHRDhzelNHMTA5WGU2dU9hcmpOeDN1UHNmUjFndnQ1WWZ0NWUvMnpKVDBNSjk3dW01NApHRy9abkIrK1YveXo5Y3hBT0k4UVlydC92UDNzdVhPdWFmTXg5YTUwU2h2WlBFeENXUzBGZFREWkg4eTg2S0Y3NWtyenViclI1Wm1LCnBlM1g5c1VYb09BQ0dUdVZzTzN5NWJPWE84RTRiVEFTUXJVREY3dGtKL0xKUFZKM3AvSTQzRXYrQXNtcmI5eUFzeDhRVHR2N3A2a1gKb29NNE9KS1hYcnQyK2RxMW5rczlqSUpHN3ZERVl2a0VNTGd6ajhNOHdlRld4bmg2UEEvQ09oNG1PRHF0bmdOclloZ2NuRXZJU3orOAozTm5UZVdrR3A2dnJrcGhnMXhhMFhMb1JYY2ZpY0hqc3ZhMWRydjdPdnpyUHREb3ZYcmxjK0Z0V2NGQkdjVHMrWkZpbWFJSTROenA3CjVJaEhtQzUxWGlxUHczZnh5Rjlvamw3NTZKOGZGRTBYR09sYTd1RlREQTQ0YThlMnprdWRuVDFoSEkrbjMxTkI1Sk1taUtKT0pkeG0KczhWYmFVZzN6d1BVYWF0bFVkQTZ3a1ZQQlhHbXhaUjFlVnh4REk3SGJmVmN5WkJKVWc4UERBNzRXZ1o4ZjJYMWh6OE5EVnhKV0E0NApYS0dRbGJBTlBIVzlaOHBkVE9IQWpZL0VSQzFQMHRmVjM5Ly9VVi9IcFVPRGNHNy9GNzdzNStpai92NmhtNjlWTTg0U0loRVdrL3U3CnJyNmIxL29ZWFI5aUtnejdKTHhJUE83d1FIZi9VUC9BVU9pOFlkL3dvUmJmeUtDdmY5QTNNdFF5TXR3LzRQTU9qb3lFK3pneUFEMGUKZ3VLK0VWOExWTzlyNlI4K05QUjdlQjN5OWNGSlF6ZjdSL29INzdFeWcvUG1CV2FCZ1hBY1pTN3R1WDY5NzZQcllaeit2cEc4VTF4aQpUd1pjdFgvazBJeFpEZzEvZkxSOVJwYjJ3YUgrb1pZdzdrRExZUCtnWmFaNHlEZHkvZERJYjBadXRjOCs2VjZmLzM1dzZIYy9DQ1k2CnNUa0t4VDU5dmErbnEyOGFwei9vb0dvNXlUNGhPOUR2NnpuVWRhTS9ySjREVW5sY1dQSmtVL1hIZmYwWFE2WERCL29zcWVKd2NYSm0KZTBkL1g0K3ZSaE0zNnh6VFlQL2RPakFFT0ttTWRTSUV1R2lSNVIrdTl3MzBYSWVacElleFRuOGZFTXVJV2hSM29XVm9zTVhYTjh1cwpvOUpHVEVpSWdqK21RbnpFS2pnNjBCSXU3eCt3eXhwRkJDSUpJVW5BM2RZV2lYMWthRENqQWhFRWd2dHg1c2MrQ0drK3VqZWtmejk4CjdZblk0T0k5S2txSWxFOWU3K3ZzNjV2QzhRYmwyeW9tK0hVeStHUWZ1dTBOYTJ4WWVvcmdzRlBFakNvaTU3UDMxM1IzajRWTFB5bVgKWS9uc0xYVmJqaCt2MjdJcmtrakpHQnYzeWtSYzlxNDRjVWdtN3lmZXUzVjcyRlc2S0lpRDRSaUtmV0d3YTZSbmdORk5hTnZYUFRRNgo3azA5UVlwU2FqNFo2Ujd0RHA4Mk91aVZWdkh5a2JqYVlyRzBhMUErZVR6UFB6UWVLbTdwcmFuaWsvTk5oNE1TNTBkdVVYcEh4eVFrCnB6WmZabUYwbEhueER0MU5NemppVGF3SkxyKytFZ0d4ekhyeHcrdVh1c0k0QUJRWTl4NHVxT1VnemU2eDRZbndhUU5qM2pGcEZjRkIKNHFPVG85MEJqWWdrNjZJSEJtZWF2MTJ6bjUzUGt3VjhmdDl3UzNZK1hxZjBEdmtsT0llRFo5cDlvMTd2OEtoMzVQYjRQY1laLzhpbgpLSWljZXFMTjVGYkIwc0dSbXplSFF6Z2o0OTNlY1crNW5FK2VrQno5MVVqNE5GL0wrSWgwUDhuRHhPMUQ0Mk8zTklnbnFJdjJlUWZDCnpYcHJxdGpjSTdMeDBRSDdXQ0NiUng1WCtzWUdKRVQrZks1RXFsUktZWXRwSDV1OGZRL1BTTVB1VjdFcG5BaWNSSStVYjV3TVRQWU4KamtCWCt6OFpZTWJMZ2I1ZjFWUVFaSjNFTW5MSU4rQWJHaDRZaEpqdUg1WldrUnhDYklFQUJCd09lVHg2OXVEcXF6bUZ3eHB5YU1RMwpOT2pMNXVEN2xRTWp2dFI4TnNuWlg5VUkybis4TWJaOHVqNlRVc3hRNWhzWStPU213b1JDRHdZd0hDZVNTL29taC90dTNyeDVmYlRYCjJ4dndCOFlteGdOMlpRV2ZPQzZwOWs5MEJ5WUNBZi9vMkpnOUFNNDZnc1R0Z1VEZ0tPQnc2cUlEM2tCSTNZR2FLczZSZkZtdjN6OGEKQ0dSejJNZVY5ckd4d3hvZWp3Tjk0SkJzU0dPOGdHbHJTbjZ2Mys4ZDgvci84TTYvc0pCb0dpY0M4aEtUTFowYzhONzJEZC8wZC9zbgpBcmY5dmIwVGYveWp2VVpUeTZyVFpBVHN3REx1dHpOSTByMGNjZ1lIWWljd2kyZThaaTg1SDNDWWhQUm5zOGxHcGQxL2E3ZzlUellsCjB4NDJtNml3aDZ2ZkR0akhvSy9lajFkbmczRkMzM3d6MGNQS2VHNXljdEp1bjV3TWpBWjYvYmZ0UTcwVGdVLzgxYVlLRE1uempvN2IKZS8zMjIvN0E3UW13RG1SV3UzY0toMkJ3WnZSeFRWVVVPR3ZVM3RzOWRpdjdDSEZjNmU4ZG54ejFBN0lQdHZLZExDNnF1RFVhcWo3aApIK3NkdGR0dnJzNkVxVW9ZL2c0RGgyRnQrWVVudTBFQjcrakU1RmpnOXFUZDI5c0wxdmRLWXh2Um5vSVl2OWMrTWRFTEFTbzlSWEx2CnRNNk1jWHA3YXhvak9idGtmd3A0L1JPKzdGMmMvZEpiZ1c2N2Y1d3BoR3JsYnhHNytCWCtLV2N4Rmd4TVROZ0R3OS9OUU1Uc2gvMFIKOC9nSXJhOSs1MS85L2orUGVzR0dvNHhYb1htby9FbTdVbEp4NnFCRTJUN2gvZE9vZlV6YXlPSGVHVHV6Wk0rb2pPVE15d3c2MXg3TAppOXhTSUd2dnJUYUZKRG5JNWlDNTNUNU40NTMwK3IyQlQxNzU3YXN3anMvK0pRUWk4bkhXK3QzUGZQeVhXd0Z2Q3pUV3kvVEc3NThZCjl3ZnNmL0puUkd2a3g4U1pOWmFqdHlha2UySElEK0dRNkE0Yyt4L2Jzd2tvbmJwNEJYNkV4Q29PMnkvc1FjVDA3Nm9GK1lnckNmUk8KMHpDeTkzLzNKOHNSaWQvNXN4NE1waGpoOHBxbHYvbmorTC81Sjd1OUFOUGIyOXM5YVlkZVFpalpqN1puNUtXbXB0YTBqeXZmcWp6WQpPSVVUMjFoWnVUTjFGbzQvME51YXZiT3lzdkxnd2IwSEQxYSsvdnFwZzNIVmdRc3BWWldNOWtEdFUzc0t5cWREQjFoNmgzcEhucWhaClRvZzI0M2Q5bVNzVWlTSVJNdjM4dFgvN3k2MWV1L2MyMDRYZXdCZVdkMVpFM1Nzd2VlKzRIYTVqZisxbk1oYWFKOER2K1dvWkUrV3oKa1doOXpkcTB3TVNmQW9QZDNiZjl2dHYzcWZHNzlIbjFBNzd1MFluQXJjbC9mM3B4TW9ad1lkU25QTjJLUUxnb0VzZVNwVDk3b3JOLwpkUFRQbzhPM2VxYzFrem1mdmo5bmVXL2RIdTByZnI2OFlDRmlDd1NmOFdBVTR6TWhoSkpsaTcvK3hIZi80NTkrZWVNL0dmM2hEMy80Cno4L1JmMDNyczhxbldwaHA1NWV2L2VBSDd4ek95MFlJWTdISXozeUlEUXNrSHZQY0JzbGpaY3FZeGYveTJ3ZWtyVEhSRXZGeWhFRVcKUHZJLy9oNERFeEVremhaaEJIcVE0ak1MUTRMTjU2RFBlb0EwSytYWkdQOEluODlpOGJId2Y4T1kxbWZ0M3kzb05YTzlzTzRweDNHTQp4U09JS1B3K0hxZkQ1ZGdFd1dheitaRmZYSHo0aStSUDYrNUNsb0FVTEJSaTJQMCsyNC9Bd0YyNFFEU3R1M3NaMmcrVjMzMzg4NFF4CkQ0anVFK1doSHVxaEh1cWhIdXFoL3QvcHZ3RzBHTDBDS29ydG9BQUFBQ1YwUlZoMFpHRjBaVHBqY21WaGRHVUFNakF5TXkwd05DMHcKTVZReE16b3hPRG95TWlzd01Eb3dNRlhDVXhrQUFBQWxkRVZZZEdSaGRHVTZiVzlrYVdaNUFESXdNak10TURRdE1ERlVNVE02TVRnNgpNaklyTURBNk1EQWtuK3VsQUFBQUtIUkZXSFJrWVhSbE9uUnBiV1Z6ZEdGdGNBQXlNREl6TFRBMExUQXhWREV6T2pFNE9qSXlLekF3Ck9qQXdjNHJLZWdBQUFBQkpSVTVFcmtKZ2dnPT0iIC8+Cjwvc3ZnPgo=" /><br>
-     </div>
-    <h1>NAS 轻量媒体播放器</h1>
-    <div class="subtitle"><a href="/static/zhinan.html" target="_blank">设置使用指南</a></div>
-    
-    <div class="media-container">
-        <div id="loading" class="loading" style="display: none;">
-            <div class="loading-spinner"></div>
-            <div id="loading-text">加载中...</div>
-        </div>
-        <div class="media-content">
-            <video id="videoPlayer" controls autoplay preload="metadata">
-                您的浏览器不支持 HTML5 视频播放，请升级浏览器
-            </video>
-            <audio id="audioPlayer" controls></audio>
-            <img id="imageViewer" alt="图片预览" />
-        </div>
-    </div>
+<div class="logo-container">
+  <!-- Logo SVG 内嵌 base64（保持原版不变） -->
+  <img class="logo" src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+CjwhRE9DVFlQRSBzdmcgUFVCTElDICItLy9XM0MvL0RURCBTVkcgMS4xLy9FTiIgImh0dHA6Ly93d3cudzMub3JnL0dyYXBoaWNzL1NWRy8xLjEvRFREL3N2ZzExLmR0ZCI+CjxzdmcgdmVyc2lvbj0iMS4xIiBpZD0iTGF5ZXJfMSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4bWxuczp4bGluaz0iaHR0cDovL3d3dy53My5vcmcvMTk5OS94bGluayIgeD0iMHB4IiB5PSIwcHgiIHdpZHRoPSIxNDJweCIgaGVpZ2h0PSIxMTNweCIgdmlld0JveD0iMCAwIDE0MiAxMTMiIGVuYWJsZS1iYWNrZ3JvdW5kPSJuZXcgMCAwIDE0MiAxMTMiIHhtbDpzcGFjZT0icHJlc2VydmUiPiAgPGltYWdlIGlkPSJpbWFnZTAiIHdpZHRoPSIxNDIiIGhlaWdodD0iMTEzIiB4PSIwIiB5PSIwIgogICAgaHJlZj0iZGF0YTppbWFnZS9wbmc7YmFzZTY0LGlWQk9SdzBLR2dvQUFBQU5TVWhFVWdBQUFJNEFBQUJ4Q0FNQUFBQTA1MnYyQUFBQUJHZEJUVUVBQUxHUEMveGhCUUFBQUNCalNGSk4KQUFCNkpRQUFnSU1BQVBuL0FBQ0E2UUFBZFRBQUFPcGdBQUE2bUFBQUYyK1NYOFZHQUFBQy9WQk1WRVgvLy8vLy8vLy8vLzM3NHZYKwovZnYvL1BuOC92MzYvZnY5L3ZuNi8vejUvLzM3Ly8vOC9mLysvdi84L1B6OS9QcjgvUDc5Ly83OS8vdi8vL3YvL2Y3Ky9QMzQvZi80Ci8vL3E4L2ZNMHRla3NMeHdoWnBOYUg4L1VHSXhSRjAwU21kQlduRlpjb21LbksyN3h0RGY1T2piM3VFYk9sY0JJMFFDSUQwQkpVa0UKSjAwQkhrSUtMazhrUldWZmVJL3Q5LzBGS0VJQktWRUZMRk1ITDFJS01GUUlMbElITFZJSkxWQUlMMDhGTFV3Z1BWL1MydUhxN081NgpqWjRkTmswR0tWUUpLbEVLTFZNSU1WSUlMVTBHTDBzSEkwNUVZMzJDbEtVVE5GQUpMMVRDemRVR0xGRUZMbEVNTGxNSEtrL2Y3UFExClVXOEpLMU1JTGxNTEpVVWRORklLTEZBUExFb01MMVVITFZRQ0xWRzR3Y2tMTGxNSkxsWUtNRlZvZjVNRkwxTUVMRS85Ky96Ly8vaXQKdThZRExsankvUDRHTWxuNCt2eng5Zk1tUFZRM1YzUU9NRlVMTVZZS01GY0pNVlVLTDFvTk1GWUhNbFVDTDFVSUwxa0xNVmdRTGxvTQpMRmdLTWxVTE0xWUdNbFFOTVZVWU8xME1NVnNOTDFnSUoxVVVOMW82VzNpWXA3VG42ZXZ5OHZIMTlQVDI5dmJ4OGU4TU1sY3BUR3hTCmJZYjcrL3o1K2ZvSUtsWU9NVmY3Ky9rY1FXUU9NbFlKTTFrdFQyeno4dk1JTTFiMzkvZjE5Zk1MTWxrTE0xVDQ5L1VOTkZ2ejlQVVAKTlZvT05GZ1JPVjRsU1dzMFVHWUpORmNGTTFFUE4xdEJYbm43L2Z3eFVtNFZQV1B1N3U4NFVtMzQrUGtNTkZjTk0xajYrdmNKTTFzTwpNVmtMTUZvUE1sZ01NMW9NTkZnUE1scjE5dmtMTWxzS05WZ05OVmdlUldrTk5sWVFNVjBPTVZFUk0xME5OVmtOTkZVS05Gb3ZVM0VRCk0xVUxObGtJTWx3S05sMEpOVno4L1BjTE5Wc0lObGdRTjE0UU9GZ05NbHdNTVYwSk5Wb09OVndJTkZrZFJWNE5NMTRPT0Y0SU5sb0gKTlZrTE5WMFBPbDBMTlY4S05sc0pOMkFMTjE0TU5sdzFWV3dKTmwwTk4xOE9OVjROTjEwTk9Gc01ObUVPTldFTU9GMExPRjhNTjFvTApPbUVRTzJJTk9WNE9PR0FQT1Z3Tk9HSU5PV0FPT21FUE9WOE9PbDhSTjJFR09GczFWV29PT1dNTk9tRUtQVndOTzE4Tk8yVU1QR01HCk1HQURNMXNITjFzSE4xMTlpWkgzQUFBQUFYUlNUbE1BUU9iWVpnQUFBQUZpUzBkRUFJZ0ZIVWdBQUFBSmNFaFpjd0FBQ3hNQUFBc1QKQVFDYW5CZ0FBQUFIZEVsTlJRZm5CQUVORWhZT1VSYnVBQUFaSVVsRVFWUm8zdTJiRFZ4VDU3M0g5eHlPaUNZbjc2YzFnYnVaRUliUgpFdHVDVVF1c2dyMVFhSzJWYm8yTGhBNVphK2NDaGpWYlRrR3VCS0hoWlpoR3dmaEd2QlNzemtSYWM2cVJPVEhPSzJQTVdxL1pCUjNzClFuQ3dpcFFFZHJlNzNiZlAvWjlBQW1wN0s3Mno5M00vSDM5NGtwenpQT2M1MytmLzhqelB5WWxmK2NwRFBkUkRQZFFjaE1MQ1lJdjQKdjBTSndPZEZ6bzlhc0dEQndvVXNOcHZGSmpqei84K1FJakNjaTdONHhFSitKSUhqQ0xIWmJCNHVZUE9Ga1FUMjVjTVFySVVzbGtqSQpRaGcyNHlzUVFSS0VnSVcrWEpoSDVqL0tZckhnNm92RWt1aVl2L2txNkd1THBiSllPUnpEQ0lUNGdpL1JRamppTXlnb1RyYjQ2L0ZMCjRoV0twVUVwbGkxN0xFRVp1eHdKRnJCdzlHVlppUEVJd2dUTEpYL3plTHppaVNjVGsxYW9WQ3JZVmo2MmF2WHExZkhMbmxJbUkwVGkKYk1HWEVkUVJpTTFFUzBycU41YkVQL0gwbXJTVjZXdlhyZ0tscjFyMURQT2lXdk8zOGZFWnNZZ1FRR3cvY0k4SkJmd0ZMT0hDekdmagpGYXZYcmwyNWF2WEt0YXFzRlN1QUkxMjFJdkd4bGF2V1B2YllxbFdLSlRGZ0llSlIzZ04ybUVqQTRpT1VuUkQvNUtyVno4RGY2dFZyClY2OWVOU1hBV0FXR1VxMEMzejJuV0pMS2h1UW5XUStTQnBGTVBrY3ZVenozSFBobXBZcTUvS3JuMDRNMDZTdGdiMFhpcWxXSnExVHIKbmxPOXNPeXJ5U3pFSm9nSFNFT0lXR2o5aTh0ZTJQRGNTbFdPS2lkSEJhOWdpaytYNGlVSndpSUo5b01LYUlFSUVaajRtNG9YdnJVbQpiVU9pNmxOQlZMTU9MMTBXRFZsSXNoOE1EWVlXQ0xEc2w1OTRXcjB5YmMyR2pUa2hxV1krQlVsVVUweXFEZDlXTFpQQ2tJZ3RmQkEwCkJBOG1KczNMaW1mUzB0STJyVm1UdUhJMnlEVFZ0RzJtanEvSVVnRVBRdk9KQjJDZmlFaFNoTEpmWHJyMm1jZlVhYmtiMWp6UFhEMUwKRzFhV2FwYU5HT1ZrSmFvMnFwYmtJWUlnLy9yNWpnbEYyUHB2TG4xbDdjcE5hVG1KYXphb2N1LzBsT29PbnpFdkt6WWtKdVorWjBrbQpZZ254L3oxUEJLUHdIb0xoaHZXMXBXbWIxcTFMVXozM2ltcERibTRPazFiQjRKMks0THVzbzBwTHkxMEJQRXMxS0pJbCtGK2g0REM2CmtJeUk2WGtuSWgrT0tCVzVTZXZVZ0pPbXlrcExUTXo1SE9VQ1VPTHphWXB2cm9jNVZmVEZ6WUlJZGlRZkZ5d1FDUEFvRVR1NG1CSnQKM293SzRyK2JDN1paRjdyY05FL3U5SjRLRHFSdHpFbFQzWTIxTEFQaE9QZUxqajR3K1FraWtRZ1NGRFlCVEpjRUJrc3NISC8xRzRyWAowdFlCejZ3cnJWQ3RTR1BFaEZCV3prYlZwaFVyWmhkUCtXMmpRb0kyNC9nWE13M0JaaEhNRW1MTG9oUzUvSFZZN09FQ3lBeGNnRVV2ClNVcGtMcTBPeGNZR0NKbkUwRTdPY3pCUXE1NS9aZU5HMVN3eFNKQmdUeTJQMmt4OEVSN3dzb0FmK1VoeTZ1THZ2YlFzUHY2WnJiSkYKQkxQOHhKRDg4YlhwU2V1K3IxNjNUaHRLYjUwMnQ3QW9LMG1kQkFleXRQQmhrNjVRblRVcithZWt6b3BQUlZGUlh5QzUwQUl3QjRwZAovUGdTeGRMVjIxNUpXdnVkK01laTF4Tkl5RWN4ajZlbnF4a2NkWGlrMFdvMzZkVnFOWU9pWTNhM0ZXcHpBZXB1bkt6aUh6eTdIdCtNCjVzeURXQXNGYUxsMHllcFhpbC9aK01ZMlEzRngrZzkvOUxjdjU4bGhUUkcvRm5DK3IvNytqSFVLczVLU3RJV0Z1UUREZk5KdEt0UW0KcVF1THRQZmdaQlUvbm9sRmllYUtneDVsYlJZbUp5eFphNlRTaTdUcjNnUzdGK24xUDFxamVGWXBYL3gwWVE1WUI0d1J4bEZyazdLSwpzdUJObTFYQ3VLdW9KTW1nM1hRUGpiWXdTZjFDNlNNWVNjd3R1U0pFanl6QWtyLzVVczZiUlVaakRsaW1zRGc5Zlh0Wm1mcEhmNmQ0CitYSDFHN2xGV1pCWTMxODNxOS9hSFUrVlMxTk5CY255aXAyVlZXL0pTb3FUTnFYZmFSbEc2OUxpQy9ETmN4eWFGL0JaMlBydktkYVoKYzZZalk4b0dhdlhHRFQvYW9NdlpDSE80T20wVC9PWG1ibUl1a2xSZGsxcVFYTVhtMVBLRVNFamdxQzV6UlhwUjdxWmNHTENobU5rMgpKYXBXd041ajZxVXhLR3B1T0lnRmR5T0w0MytzMWpHQkNmK01JQ1lTOU9ha2VyMVdaOURwa2d3R28wNnJLOUVaU3hJeU1ndmlxdW9RCm5wK2ZUKzdpMUhJNUpGZGowUnZVYnh0MWpMUTZuVUd2TnhyMWFpczBwRXQ4ZGpsR3pPbk9BbTRxTVpraVo1dEJyV1p3WnNsb3RScVQKU3ZUR0lrcW4xcXNOUmJyZFNrbnlIZzZaVDdCNElvZ0pMcGVkdnl1U0U1dGdMdFRweW5SR0NvajA5VkRSYURUb2trcEt0SWF5TEVVQgpjenMwSitQdzF6KzdwcUdCUVlGL1JtT0l4bENtWjdwcmdGWkxkSWFTM1htU3VDMjFHRTZTY0dmZXVETXVXNU9DMS9Md3ZhYnFvaEo5CmlhNGhxVWdYYk1HUXBOTlJhcjFOVzZRcjFLY3ZqVVlrTmdjYzdGRVdTbzEvczdnb2Zjb3llbjNZT21hR1NiZlBxTmNWbDBwTjhrcEUKQ2poSXRMOHVXU05UYmswNGtCQUhjOUxCekVOYWZWR1QvYW5ER1RYU3ZPalUxTlJvWlhtcDFxeDlRMi9VcWt1S1h2aDdXUGZjL3pJKwpJb3FGRm4zdk84M3ZGQnUxT3ZXMHBvSzVSRnVvVTVjeDI0dXA0aTIxUXJoZHdmR0syTlNZQkRobTBKYWFHZ2tlR1Z2NllreWVTUktiCkxPZlZjbW81ak1nVXplS2k5Q1NvcE45a1ZIM2pWWXdrNzk4NDJFSk1FLzltZWtOUkF5UGpMQlVYRzVPTURjMHRyYWFLL2NRUkxpZHkKdjF3Uy9lN1JmWWIwNXVLRzRxMlNLcHczajNjc0x1WDFLaExpZzgrZHorVUdjZWFqWGFaOWtBMUd5SXFpTjErRys4QjU5eDNMQ09lagp2T2UzNmQ2RVVEUXkzdGRxaTZaeENvMWFZM0ZUamVRWVFaSWlnbE9seWR1cU5ocTFoV3BEb2M0U0hZZEkzcTc1SkpkRGtQa3NYRVJnCkJHZGEzQ040WnBGQlcxU1VwQzFXRjc4VWkvRDduN2RRSklGKzhtMmJycmd3S1RTRUpVRWFKWldBeDNUcUhURUZiM0ZGbkVqV3dlVE0KMWgwNm1BdDBTZHFrYXFsRWZKd1VrU1NQRFdzUlBqbC9aK1dlUFpVN09WZ2tleDZQaE5Fb3BWV2RwSWZCMjFCVy9PWXlDU0xuM1M4Twp3Z20wcURUWDBXdzAyTXdoT1kyVXVWNXZzN1hVU1Biazg0OFFlS1ZHZWRpMno2eXptZDgySnlnbDhrcFlEQkVuVGxTOUx0YVlaQkM3CkdhMmdqRHlUSEdkemEvTnhqbVNIMldtbzF6dk1CcW8rWHNaSDg0VDNGOGNJbGpTRS9LVzI5QWF6N3IxUVF1bmZQMWxpdHBtcFZra0sKbXlCeDdIV05zclNzeEZ3R01KWWFVeHpKZ1h1V0NuRkJabDdNdXp0Y0JrTjl2Wmt5R0pnUlJ4OWRkWVROM1lWWHRKWVlqRTRqYmRZWApHVDlRWkNJMjk3NiswUkJ4U1JMdTc3T1hOQlNaS2JNK0ZNSTJzODVjYjZpV1ZUeUNjL25jS28yMHRLemVScFhZZG16TmpEMkY3VG9ZClY1QXAzVzFwZWsrdmM5a01VTmRHd1dhZzlFWkQ5SDVpUGtkVUdYMzZiV3U5emd4Rnh2ZCtxSWpHWUdYMytRTXpnbnRkY1AzQzJNWGYKb3VyTnpRME5WRWhXcys2UVVrd0tvempFM214bHFlMmtycUc1MmFLTVBjYmx5VFdwTWRVNksxRG96QlFGaDQwNnM5N3MxTkxOelZUegpickVRNStDOGdsS3FtZElERGxRcSs0QVpCMFVFZ1F2L1o2SW9FZ2tSdHNYMDFhVXZGRkVVclhNM2gyaE9tOTN2U2lyNU9JK1lMOCswCk5PanE5V2J6VnBsNDc1NDRrL0t3M1FaekFkUUZGK21ncnRscE05VHJ5dDR1b1pxYkV6UjFZTzBqMmRXVTFXMXNleHZHWnIzT2NGS1IKQjZzNG5JakVJMG5zczMwR0syR0UyS2FuRkQ5K281NHlObE1uZFdIak9NL2t4V0ZrdmdnL1pub1hJa0JyZHJhYVVvNW5aN2EybTVtQgoydEZzTmxNMnczc0dJMlYxR1psektZUFphRHRacnVHSWVFZHc4VllyRFpheVVycDZvMWxYVnIrbU5YazV3Z1FZTG9TN1V0R25XeWlDClFMZ0lFMjlWUEZsRzA3YjNxWDNRT1ZzSUowR3luNnpsNHZNMU5VWmJVWE94bzFVU2w1eVo4ZE5tYXdNVFlNMUdRRERDR3pQQk01K00KelRxOXNjR1NHbGZINXBGQTR6WmFLYU81bUlLWlhhY3ZLenU3OW1kUExVNk5sY1BpVndpWjgya0dpb2hDRU1LeWwxY1htYzl0TjRSQwpXR2ZZQjhPeW9WVnpndUNRSlBnSkRHV3pialZwVERFV3lrM1JOSVFFaEFyRUROWHNicWFwS1h2U2xNMWhUTWpMM292eU9VU2xwTnBnCnBaeVUyK2hvcG9LRHhudnZ2ZGZ3eXZNS3hZNk1naE93MUJDeCtQY2FhTDl3RnlMeUZCMzE5U2QxdG5ETU5MdVo2SlRLRWNGRGV6V3QKSngzbm5aNkV6SUxVQ3orbmFkclI0WEk2bTV4T204ZERPNXhOOUFHNncrbDBuT21nNkl1V0dKbTRVU1NxSmNqR1RJdmpiYnFEdXVodQpjbG5QME5BZHA5bnMrb2RMMXM2MjE1NVVQQ1Y3RmNmSXlIdFdZNzhRd3AydVZQSCt0cktUKzVxZFRucGFQM1YyMFllaUt6Q2NWN3RUClp2SDhzcU9ManBIbFdad2RiamROaDJ0MU9McVlOK3JNZVFhc2ZXdWVTWHo4QkJaNWhFU25ORFVkWjJ4dXA2T0pwcytmb2MyaE0raDkKNTgwMDVhQUtGUW14TUg2eTJYZnlDS013SEVuamJSOThVRzkydTh5TzhHbG56TjJweDBndUcwK1dYblE1SGE2bWpCaExWd2UwMzlIQgoySUx1b0drM3ZEZ2NZQk9uM2RLcXpKUWtIenVCQ0Z5QWlCT25Zdk1zNTVzb3Q4dlJTZE9laXpUZEhHclc3WURPbktGb3MvdEpSZDZqCk1BcmRzUnlMRUFKTmRQeXZ6R2ZPT0E4MXU1enVFSS9UZGNpMG4rQ3hhOFd0blpTRFBubHhSNmtaQ0tDdkRnb0F3QzVuS0FhbWFjZnUKREtWSmsxeEhjcmg4eE9ZVHFDNUZMS3NwcFR1c2RKT2JEcHJiNFFEeVVMdE9jeE9ZeW5iNi9aTnZMSDEzUFNJWHpyWVBQZzliVUJDLwo2V1JUay9NUW5CUDJBcHdYdlJQdElrNW9xajEwUjhlQjgyNmFnZ2lCVmgwUUpSMzBBZGc2ZnBXUUVXMFNWeHg3NndUbmVHUGp3V01wCjh1d0NXWFROdXhZbjdmWTQzZTVtYVBBODFlRjB6R3JZNlFMWDB1K2YzbTZtWERiRjErVm9vWWdYam1mK1BDRmE5R3lhK1FQekI3WVAKVHRJWHFURE54YndVR0QvM210cWRUSnYwQVdnVFFKem5MMW85SGtpc0pxckQxVkdhQVV1K1BKQXlUeW1OeVNpL1lIRTZ6b01Ob1o0YgpJQnhONXgyZTVpNkh3OVAwODQ2WmZqb2NEcDNUdHAyeVhmNlFYdnIxOWFoMnhqdzRqb2xxNHMyMkR6dHRWOXBPMjl4bndpZEo1VGpKCjNtdXl1QzQ2YkIyT2k0NnBobWlYR1JJSzNwMGRkQlBUWS9CdXNPZ01RRGN4SHp3ZlVXNDNYRHg0MUZOYWZ1RnRwM3RIZEl4bmhvWjIKdlgvWlpuT2RkdGxzbC9YeFgzc1ZzUVRUNjFVWXNMSHMrSDM2RDh2YVBKN09OcXVWb2wxbllLUndkTFhHd2JTdzMyU1p2a3FIbTU2cgpncGk3S3pRMDNXV3BNTTJLSFZkSU5wQWhYb213QmRPM3BsRTRpeFdqTUo4OTU3cnE4WGl1UUxMUzU4MFhmK2s4MlM0bWVGeVIrRER0CjlIUkF0cGtaaTh4TlRKaWZkRlh2ekc1OTBXMlhLTStFanRQMEhUZzJTbEVnaEhVV1E0TUpmeUZNZnJ6bzhybHpsOTJlb0t4V3NMN0wKNGNqY1QzSTRjVEZPWnJCejBCNEloN25pT0duSHZwKzZxMU9PNzBuZVhYMU04dlB3Y2RjTUR2T3kvWjEvZkZVbzRFLzVTb2hTSDI4NAplKzdhNWVZUVRwdlQ3UEpzaFdWVlpHT2VpL0k0emJRUm9DamJYSDFsbzh3ZE5tZDFTcHlNbTFmTmtyakN4N2R2M3c1RzJjN1loc0c1CjNCd3Z3MWhCSEJ3VFB2clZiK25PbnJ2c3VXcWQ0dkYwYm0ranZKSTZIcm1yb0JTQ3FSUE9OYmhzbnRPMnVjclQxa2Jid0M2ZVhkR0gKU2NuTThkTlRUVm10UVJ5Ynk1Yit2ZVdJK1E0VFk3R1ErT1VzOE5VNXQyM2FPQjUzVzV1dC9CZzZRbFNVZDNaMmV0cXVYcjNpdWZycgpmM0pmbmFQYzFwNnJ6Yit1ZnF2Z0tDZjZNSko0UXNldFlYbUNPTzREZEx3RVo2eURXR3hrVWpTY3ZYYnU3RlZYRUliUlZXdWJDWEU1CnRiS09Uay92MW93TFZLZlYxZGxwdlRKSGVUcXBydXVYZDFjVVhOZ1pYWDJ3d0hOUCtaVXBuRE9VKzRsV3hIempqQkVZcWxGc1Azdm8Kck92WFV6Q01oZHFja0ZaSDhMaHkrc3B1eWJHRDhzelNHMTA5WGU2dU9hcmpOeDN1UHNmUjFndnQ1WWZ0NWUvMnpKVDBNSjk3dW01NApHRy9abkIrK1YveXo5Y3hBT0k4UVlydC92UDNzdVhPdWFmTXg5YTUwU2h2WlBFeENXUzBGZFREWkg4eTg2S0Y3NWtyenViclI1Wm1LCnBlM1g5c1VYb09BQ0dUdVZzTzN5NWJPWE84RTRiVEFTUXJVREY3dGtKL0xKUFZKM3AvSTQzRXYrQXNtcmI5eUFzeDhRVHR2N3A2a1gKb29NNE9KS1hYcnQyK2RxMW5rczlqSUpHN3ZERVl2a0VNTGd6ajhNOHdlRld4bmg2UEEvQ09oNG1PRHF0bmdOclloZ2NuRXZJU3orOAozTm5UZVdrR3A2dnJrcGhnMXhhMFhMb1JYY2ZpY0hqc3ZhMWRydjdPdnpyUHREb3ZYcmxjK0Z0V2NGQkdjVHMrWkZpbWFJSTROenA3CjVJaEhtQzUxWGlxUHczZnh5Rjlvamw3NTZKOGZGRTBYR09sYTd1RlREQTQ0YThlMnprdWRuVDFoSEkrbjMxTkI1Sk1taUtKT0pkeG0KczhWYmFVZzN6d1BVYWF0bFVkQTZ3a1ZQQlhHbXhaUjFlVnh4REk3SGJmVmN5WkJKVWc4UERBNzRXZ1o4ZjJYMWh6OE5EVnhKV0E0NApYS0dRbGJBTlBIVzlaOHBkVE9IQWpZL0VSQzFQMHRmVjM5Ly9VVi9IcFVPRGNHNy9GNzdzNStpai92NmhtNjlWTTg0U0loRVdrL3U3CnJyNmIxL29ZWFI5aUtnejdKTHhJUE83d1FIZi9VUC9BVU9pOFlkL3dvUmJmeUtDdmY5QTNNdFF5TXR3LzRQTU9qb3lFK3pneUFEMGUKZ3VLK0VWOExWTzlyNlI4K05QUjdlQjN5OWNGSlF6ZjdSL29INzdFeWcvUG1CV2FCZ1hBY1pTN3R1WDY5NzZQcllaeit2cEc4VTF4aQpUd1pjdFgvazBJeFpEZzEvZkxSOVJwYjJ3YUgrb1pZdzdrRExZUCtnWmFaNHlEZHkvZERJYjBadXRjOCs2VjZmLzM1dzZIYy9DQ1k2CnNUa0t4VDU5dmErbnEyOGFwei9vb0dvNXlUNGhPOUR2NnpuVWRhTS9ySjREVW5sY1dQSmtVL1hIZmYwWFE2WERCL29zcWVKd2NYSm0KZTBkL1g0K3ZSaE0zNnh6VFlQL2RPakFFT0ttTWRTSUV1R2lSNVIrdTl3MzBYSWVacElleFRuOGZFTXVJV2hSM29XVm9zTVhYTjh1cwpvOUpHVEVpSWdqK21RbnpFS2pnNjBCSXU3eCt3eXhwRkJDSUpJVW5BM2RZV2lYMWthRENqQWhFRWd2dHg1c2MrQ0drK3VqZWtmejk4CjdZblk0T0k5S2txSWxFOWU3K3ZzNjV2QzhRYmwyeW9tK0hVeStHUWZ1dTBOYTJ4WWVvcmdzRlBFakNvaTU3UDMxM1IzajRWTFB5bVgKWS9uc0xYVmJqaCt2MjdJcmtrakpHQnYzeWtSYzlxNDRjVWdtN3lmZXUzVjcyRlc2S0lpRDRSaUtmV0d3YTZSbmdORk5hTnZYUFRRNgo3azA5UVlwU2FqNFo2Ujd0RHA4Mk91aVZWdkh5a2JqYVlyRzBhMUErZVR6UFB6UWVLbTdwcmFuaWsvTk5oNE1TNTBkdVVYcEh4eVFrCnB6WmZabUYwbEhueER0MU5NemppVGF3SkxyKytFZ0d4ekhyeHcrdVh1c0k0QUJRWTl4NHVxT1VnemU2eDRZbndhUU5qM2pGcEZjRkIKNHFPVG85MEJqWWdrNjZJSEJtZWF2MTJ6bjUzUGt3VjhmdDl3UzNZK1hxZjBEdmtsT0llRFo5cDlvMTd2OEtoMzVQYjRQY1laLzhpbgpLSWljZXFMTjVGYkIwc0dSbXplSFF6Z2o0OTNlY1crNW5FK2VrQno5MVVqNE5GL0wrSWgwUDhuRHhPMUQ0Mk8zTklnbnFJdjJlUWZDCnpYcHJxdGpjSTdMeDBRSDdXQ0NiUng1WCtzWUdKRVQrZks1RXFsUktZWXRwSDV1OGZRL1BTTVB1VjdFcG5BaWNSSStVYjV3TVRQWU4KamtCWCt6OFpZTWJMZ2I1ZjFWUVFaSjNFTW5MSU4rQWJHaDRZaEpqdUg1WldrUnhDYklFQUJCd09lVHg2OXVEcXF6bUZ3eHB5YU1RMwpOT2pMNXVEN2xRTWp2dFI4TnNuWlg5VUkybis4TWJaOHVqNlRVc3hRNWhzWStPU213b1JDRHdZd0hDZVNTL29taC90dTNyeDVmYlRYCjJ4dndCOFlteGdOMlpRV2ZPQzZwOWs5MEJ5WUNBZi9vMkpnOUFNNDZnc1R0Z1VEZ0tPQnc2cUlEM2tCSTNZR2FLczZSZkZtdjN6OGEKQ0dSejJNZVY5ckd4d3hvZWp3Tjk0SkJzU0dPOGdHbHJTbjZ2Mys4ZDgvci84TTYvc0pCb0dpY0M4aEtUTFowYzhONzJEZC8wZC9zbgpBcmY5dmIwVGYveWp2VVpUeTZyVFpBVHN3REx1dHpOSTByMGNjZ1lIWWljd2kyZThaaTg1SDNDWWhQUm5zOGxHcGQxL2E3ZzlUellsCjB4NDJtNml3aDZ2ZkR0akhvSy9lajFkbmczRkMzM3d6MGNQS2VHNXljdEp1bjV3TWpBWjYvYmZ0UTcwVGdVLzgxYVlLRE1uempvN2IKZS8zMjIvN0E3UW13RG1SV3UzY0toMkJ3WnZSeFRWVVVPR3ZVM3RzOWRpdjdDSEZjNmU4ZG54ejFBN0lQdHZLZExDNnF1RFVhcWo3aApIK3NkdGR0dnJzNkVxVW9ZL2c0RGgyRnQrWVVudTBFQjcrakU1RmpnOXFUZDI5c0wxdmRLWXh2Um5vSVl2OWMrTWRFTEFTbzlSWEx2CnRNNk1jWHA3YXhvak9idGtmd3A0L1JPKzdGMmMvZEpiZ1c2N2Y1d3BoR3JsYnhHNytCWCtLV2N4Rmd4TVROZ0R3OS9OUU1Uc2gvMFIKOC9nSXJhOSs1MS85L2orUGVzR0dvNHhYb1htby9FbTdVbEp4NnFCRTJUN2gvZE9vZlV6YXlPSGVHVHV6Wk0rb2pPVE15d3c2MXg3TAppOXhTSUd2dnJUYUZKRG5JNWlDNTNUNU40NTMwK3IyQlQxNzU3YXN3anMvK0pRUWk4bkhXK3QzUGZQeVhXd0Z2Q3pUV3kvVEc3NThZCjl3ZnNmL0puUkd2a3g4U1pOWmFqdHlha2UySElEK0dRNkE0Yyt4L2Jzd2tvbmJwNEJYNkV4Q29PMnkvc1FjVDA3Nm9GK1lnckNmUk8KMHpDeTkzLzNKOHNSaWQvNXN4NE1waGpoOHBxbHYvbmorTC81Sjd1OUFOUGIyOXM5YVlkZVFpalpqN1puNUtXbXB0YTBqeXZmcWp6WQpPSVVUMjFoWnVUTjFGbzQvME51YXZiT3lzdkxnd2IwSEQxYSsvdnFwZzNIVmdRc3BWWldNOWtEdFUzc0t5cWREQjFoNmgzcEhucWhaClRvZzI0M2Q5bVNzVWlTSVJNdjM4dFgvN3k2MWV1L2MyMDRYZXdCZVdkMVpFM1Nzd2VlKzRIYTVqZisxbk1oYWFKOER2K1dvWkUrV3oKa1doOXpkcTB3TVNmQW9QZDNiZjl2dHYzcWZHNzlIbjFBNzd1MFluQXJjbC9mM3B4TW9ad1lkU25QTjJLUUxnb0VzZVNwVDk3b3JOLwpkUFRQbzhPM2VxYzFrem1mdmo5bmVXL2RIdTByZnI2OFlDRmlDd1NmOFdBVTR6TWhoSkpsaTcvK3hIZi80NTkrZWVNL0dmM2hEMy80Cno4L1JmMDNyczhxbldwaHA1NWV2L2VBSDd4ek95MFlJWTdISXozeUlEUXNrSHZQY0JzbGpaY3FZeGYveTJ3ZWtyVEhSRXZGeWhFRVcKUHZJLy9oNERFeEVremhaaEJIcVE0ak1MUTRMTjU2RFBlb0EwSytYWkdQOEluODlpOGJId2Y4T1kxbWZ0M3kzb05YTzlzTzRweDNHTQp4U09JS1B3K0hxZkQ1ZGdFd1dheitaRmZYSHo0aStSUDYrNUNsb0FVTEJSaTJQMCsyNC9Bd0YyNFFEU3R1M3NaMmcrVjMzMzg4NFF4CkQ0anVFK1doSHVxaEh1cWhIdXFoL3QvcHZ3RzBHTDBDS29ydG9BQUFBQ1YwUlZoMFpHRjBaVHBqY21WaGRHVUFNakF5TXkwd05DMHcKTVZReE16b3hPRG95TWlzd01Eb3dNRlhDVXhrQUFBQWxkRVZZZEdSaGRHVTZiVzlrYVdaNUFESXdNak10TURRdE1ERlVNVE02TVRnNgpNaklyTURBNk1EQWtuK3VsQUFBQUtIUkZXSFJrWVhSbE9uUnBiV1Z6ZEdGdGNBQXlNREl6TFRBMExUQXhWREV6T2pFNE9qSXlLekF3Ck9qQXdjNHJLZWdBQUFBQkpSVTVFcmtKZ2dnPT0iIC8+Cjwvc3ZnPgo=" /><br>
+</div>
 
-    <div class="control-panel">
-        <div class="select-group">
-            <label for="dirSelect">选择目录：</label>
-            <select id="dirSelect"></select>
-        </div>
-        <div class="select-group">
-            <label for="mediaSelect">选择媒体：</label>
-            <select id="mediaSelect"></select>
-        </div>
-        <div class="btn-group">
-            <button id="prevBtn" class="btn-primary" disabled>上一个</button>
-            <button id="nextBtn" class="btn-primary" disabled>下一个</button>
-        </div>
-        <div class="dir-navigation">
-            当前目录：<span id="currentDirPath">/</span>
-            <span id="protectedIndicator" class="protected-badge" style="display: none;">已加密</span>
-        </div>
-        <div class="media-info">
-            当前播放：<span id="currentMediaName">无</span> 
-            <span id="mediaTypeBadge" class="media-type-badge" style="display: none;"></span> | 
-            共 <span id="totalMediaCount">0</span> 个媒体文件
-        </div>
-    </div>
+<h1>NAS 轻量媒体播放器</h1>
+<div class="subtitle"><a href="/static/zhinan.html" target="_blank">设置使用指南</a></div>
 
-    <!-- 文件上传区域 -->
-    <div class="upload-section">
-        <h2>媒体文件上传</h2>
-        <div class="upload-form">
-            <div class="form-row">
-                <label for="uploadTargetDir">目标目录：</label>
-                <select id="uploadTargetDir">
-                    <option value="">加载中...</option>
-                </select>
-            </div>
-            <div class="form-row">
-                <label for="mediaFile">选择媒体文件：</label>
-                <input type="file" id="mediaFile" accept=".mp4,.avi,.mkv,.webm,.mov,.flv,.wmv,.mpeg,.mpg,.m4v,.jpg,.jpeg,.png,.gif,.bmp,.webp,.tiff,.tif,.mp3,.wav,.ogg,.flac,.aac,.m4a,.wma,.ape,.alac" />
-            </div>
-            <div class="form-row">
-                <button id="uploadBtn" class="btn-secondary">上传文件</button>
-            </div>
-        </div>
+<div class="media-container">
+  <div id="loading" class="loading">
+    <div class="loading-spinner"></div>
+    <div id="loading-text">加载中...</div>
+  </div>
+  <div class="media-content">
+    <video id="videoPlayer" controls preload="metadata">
+      您的浏览器不支持 HTML5 视频播放，请升级浏览器
+    </video>
+    <audio id="audioPlayer" controls></audio>
+    <img id="imageViewer" alt="图片预览" />
+  </div>
+</div>
 
-        <div id="fileInfo" class="file-info"></div>
-        
-	<div class="upload-progress" id="uploadProgress">
-            <div class="progress-container">
-                <div class="progress-bar" id="progressBar"></div>
-            </div>
-            <div class="progress-stats">
-                <span id="progressPercent">0%</span>
-                <span id="progressDetails">0 MB / 0 MB</span>
-                <span id="uploadSpeed" class="speed-indicator">0 KB/s</span>
-            </div>
-        </div>
-        <div id="message" class="message"></div>
-	<!-- 创建新目录 -->
-        <div class="create-dir-form">
-            <h3>创建新目录</h3>
-            <div class="form-row">
-                <label for="createTargetDir">父目录：</label>
-                <select id="createTargetDir">
-                    <option value="">加载中...</option>
-                </select>
-            </div>
-            <div class="form-row">
-                <label for="newDirName">新目录名称：</label>
-                <input type="text" id="newDirName" placeholder="输入目录名称" />
-            </div>
-            <div class="form-row">
-                <label for="dirPassword">设置访问密码（可选）：</label>
-                <input type="password" id="dirPassword" placeholder="留空则不设置密码保护" />
-            </div>
-            <div class="form-row">
-                <button id="createDirBtn" class="btn-primary">创建目录</button>
-            </div>
-        </div>
+<div class="control-panel">
+  <div class="select-group">
+    <label for="dirSelect">选择目录：</label>
+    <select id="dirSelect"></select>
+  </div>
+  <div class="select-group">
+    <label for="mediaSelect">选择媒体：</label>
+    <select id="mediaSelect"></select>
+  </div>
+  <div class="btn-group">
+    <button id="prevBtn" class="btn-primary" disabled>上一个</button>
+    <button id="nextBtn" class="btn-primary" disabled>下一个</button>
+  </div>
+  <div class="dir-navigation">
+    当前目录：<span id="currentDirPath">/</span>
+    <span id="protectedIndicator" class="protected-badge" style="display:none;">已加密</span>
+  </div>
+  <div class="media-info">
+    当前播放：<span id="currentMediaName">无</span>
+    <span id="mediaTypeBadge" class="media-type-badge" style="display:none;"></span> |
+    共 <span id="totalMediaCount">0</span> 个媒体文件
+  </div>
+</div>
 
-        
+<!-- 文件上传区域 -->
+<div class="upload-section">
+  <h2>媒体文件上传</h2>
+  <div class="upload-form">
+    <div class="form-row">
+      <label for="uploadTargetDir">目标目录：</label>
+      <select id="uploadTargetDir"><option value="">加载中...</option></select>
     </div>
-	
-    <!-- 密码保护模态框 -->
-    <div class="modal-overlay" id="passwordModal">
-        <div class="modal">
-            <h3>🔒 目录已加密保护</h3>
-            <div id="modalMessage" class="info" style="display: block; margin-bottom: 15px;">请输入访问密码</div>
-            <div class="modal-form">
-                <div>
-                    <label for="modalPassword">密码：</label>
-                    <input type="password" id="modalPassword" placeholder="请输入访问密码" />
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button id="cancelBtn" class="btn-danger">取消</button>
-                <button id="confirmBtn" class="btn-primary">确认</button>
-            </div>
-        </div>
+    <div class="form-row">
+      <label for="mediaFile">选择媒体文件：</label>
+      <input type="file" id="mediaFile"
+        accept=".mp4,.avi,.mkv,.webm,.mov,.flv,.wmv,.mpeg,.mpg,.m4v,.jpg,.jpeg,.png,.gif,.bmp,.webp,.tiff,.tif,.mp3,.wav,.ogg,.flac,.aac,.m4a,.wma,.ape,.alac" />
     </div>
+    <div class="form-row">
+      <button id="uploadBtn" class="btn-secondary">上传文件</button>
+    </div>
+  </div>
+
+  <div id="fileInfo" class="file-info"></div>
+
+  <div class="upload-progress" id="uploadProgress">
+    <div class="progress-container">
+      <div class="progress-bar" id="progressBar"></div>
+    </div>
+    <div class="progress-stats">
+      <span id="progressPercent">0%</span>
+      <span id="progressDetails">0 MB / 0 MB</span>
+      <span id="uploadSpeed" class="speed-indicator">0 KB/s</span>
+    </div>
+  </div>
+  <div id="message" class="message"></div>
+
+  <!-- 创建新目录 -->
+  <div class="create-dir-form">
+    <h3>创建新目录</h3>
+    <div class="form-row">
+      <label for="createTargetDir">父目录：</label>
+      <select id="createTargetDir"><option value="">加载中...</option></select>
+    </div>
+    <div class="form-row">
+      <label for="newDirName">新目录名称：</label>
+      <input type="text" id="newDirName" placeholder="输入目录名称" />
+    </div>
+    <div class="form-row">
+      <label for="dirPassword">设置访问密码（可选）：</label>
+      <input type="password" id="dirPassword" placeholder="留空则不设置密码保护" />
+    </div>
+    <div class="form-row">
+      <button id="createDirBtn" class="btn-primary">创建目录</button>
+    </div>
+  </div>
+</div>
+
+<!-- 密码保护模态框 -->
+<div class="modal-overlay" id="passwordModal">
+  <div class="modal">
+    <h3>🔒 目录已加密保护</h3>
+    <div id="modalMessage" class="info" style="display:block;margin-bottom:15px;">请输入访问密码</div>
+    <div class="modal-form">
+      <div>
+        <label for="modalPassword">密码：</label>
+        <input type="password" id="modalPassword" placeholder="请输入访问密码" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button id="cancelBtn" class="btn-danger">取消</button>
+      <button id="confirmBtn" class="btn-primary">确认</button>
+    </div>
+  </div>
+</div>
+
 <!-- 支持格式说明 -->
-    <div class="supported-formats">
-        <strong>支持格式：</strong>.mp4,.avi,.mkv,.webm,.mov,.flv,.wmv,.mpeg,.mpg,.m4v,.jpg,.jpeg,.png,.gif,.bmp,.webp,.tiff,.tif,.mp3,.wav,.ogg,.flac,.aac,.m4a,.wma,.ape,.alac
-    </div>
-    <script>
-        // DOM元素
-        const videoPlayer = document.getElementById('videoPlayer');
-        const audioPlayer = document.getElementById('audioPlayer');
-        const imageViewer = document.getElementById('imageViewer');
-        const dirSelect = document.getElementById('dirSelect');
-        const mediaSelect = document.getElementById('mediaSelect');
-        const prevBtn = document.getElementById('prevBtn');
-        const nextBtn = document.getElementById('nextBtn');
-        const loading = document.getElementById('loading');
-        const loadingText = document.getElementById('loading-text');
-        const currentMediaName = document.getElementById('currentMediaName');
-        const mediaTypeBadge = document.getElementById('mediaTypeBadge');
-        const totalMediaCount = document.getElementById('totalMediaCount');
-        const currentDirPath = document.getElementById('currentDirPath');
-        const protectedIndicator = document.getElementById('protectedIndicator');
-        
-        // 上传相关元素
-        const uploadTargetDir = document.getElementById('uploadTargetDir');
-        const createTargetDir = document.getElementById('createTargetDir');
-        const mediaFile = document.getElementById('mediaFile');
-        const uploadBtn = document.getElementById('uploadBtn');
-        const createDirBtn = document.getElementById('createDirBtn');
-        const newDirName = document.getElementById('newDirName');
-        const dirPassword = document.getElementById('dirPassword');
-        const uploadProgress = document.getElementById('uploadProgress');
-        const progressBar = document.getElementById('progressBar');
-        const progressPercent = document.getElementById('progressPercent');
-        const progressDetails = document.getElementById('progressDetails');
-        const uploadSpeed = document.getElementById('uploadSpeed');
-        const message = document.getElementById('message');
-        const fileInfo = document.getElementById('fileInfo');
-        
-        // 密码模态框元素
-        const passwordModal = document.getElementById('passwordModal');
-        const modalPassword = document.getElementById('modalPassword');
-        const confirmBtn = document.getElementById('confirmBtn');
-        const cancelBtn = document.getElementById('cancelBtn');
-        const modalMessage = document.getElementById('modalMessage');
-        
-        // 全局状态（新增本地存储键，用于持久化目录状态）
-        const LAST_VISITED_DIR_KEY = 'last_visited_dir';
-        let mediaList = [];
-        let dirList = [];
-        let allDirs = [];
-        let protectedDirs = [];
-        let currentIndex = -1;
-        let currentDir = "";
-        let currentProtectedDir = null;
-        let shouldAutoPlayAfterAuth = false;
-        let pendingUploadFile = null;
-        let pendingUploadDir = "";
-        
-        // 上传进度跟踪
-        let uploadStartTime = null;
-        let uploadedBytes = 0;
-        let totalBytes = 0;
-        let speedHistory = [];
-        let lastUpdateTime = 0;
+<div class="supported-formats">
+  <strong>支持格式：</strong>
+  .mp4 .avi .mkv .webm .mov .flv .wmv .mpeg .mpg .m4v
+  .jpg .jpeg .png .gif .bmp .webp .tiff .tif
+  .mp3 .wav .ogg .flac .aac .m4a .wma .ape .alac
+</div>
 
-        // 工具函数：获取本地存储的上次访问目录
-        function getLastVisitedDir() {
-            try {
-                return localStorage.getItem(LAST_VISITED_DIR_KEY) || "";
-            } catch (e) {
-                console.warn('获取本地存储失败:', e);
-                return "";
-            }
+<script>
+// ── DOM 元素 ────────────────────────────────────────────────────────────────────
+const videoPlayer   = document.getElementById('videoPlayer');
+const audioPlayer   = document.getElementById('audioPlayer');
+const imageViewer   = document.getElementById('imageViewer');
+const dirSelect     = document.getElementById('dirSelect');
+const mediaSelect   = document.getElementById('mediaSelect');
+const prevBtn       = document.getElementById('prevBtn');
+const nextBtn       = document.getElementById('nextBtn');
+const loading       = document.getElementById('loading');
+const loadingText   = document.getElementById('loading-text');
+const currentMediaName = document.getElementById('currentMediaName');
+const mediaTypeBadge   = document.getElementById('mediaTypeBadge');
+const totalMediaCount  = document.getElementById('totalMediaCount');
+const currentDirPath   = document.getElementById('currentDirPath');
+const protectedIndicator = document.getElementById('protectedIndicator');
+
+const uploadTargetDir = document.getElementById('uploadTargetDir');
+const createTargetDir = document.getElementById('createTargetDir');
+const mediaFile     = document.getElementById('mediaFile');
+const uploadBtn     = document.getElementById('uploadBtn');
+const createDirBtn  = document.getElementById('createDirBtn');
+const newDirName    = document.getElementById('newDirName');
+const dirPassword   = document.getElementById('dirPassword');
+const uploadProgress = document.getElementById('uploadProgress');
+const progressBar   = document.getElementById('progressBar');
+const progressPercent = document.getElementById('progressPercent');
+const progressDetails = document.getElementById('progressDetails');
+const uploadSpeed   = document.getElementById('uploadSpeed');
+const message       = document.getElementById('message');
+const fileInfo      = document.getElementById('fileInfo');
+
+const passwordModal = document.getElementById('passwordModal');
+const modalPassword = document.getElementById('modalPassword');
+const confirmBtn    = document.getElementById('confirmBtn');
+const cancelBtn     = document.getElementById('cancelBtn');
+const modalMessage  = document.getElementById('modalMessage');
+
+// ── 全局状态 ────────────────────────────────────────────────────────────────────
+const LAST_VISITED_DIR_KEY = 'nas_last_visited_dir';
+let mediaList = [];
+let dirList   = [];
+let allDirs   = [];
+let currentIndex = -1;
+let currentDir   = '';
+let currentProtectedDir = null;
+let pendingUploadFile = null;
+let pendingUploadDir  = '';
+let uploadStartTime = null;
+let uploadedBytes   = 0;
+let totalBytes      = 0;
+let speedHistory    = [];
+let lastUpdateTime  = 0;
+
+// ── 工具函数 ────────────────────────────────────────────────────────────────────
+
+function getLastVisitedDir() {
+  try { return localStorage.getItem(LAST_VISITED_DIR_KEY) || ''; }
+  catch (e) { return ''; }
+}
+
+function saveLastVisitedDir(dirPath) {
+  try { localStorage.setItem(LAST_VISITED_DIR_KEY, dirPath); }
+  catch (e) { /* 忽略存储失败 */ }
+}
+
+function showLoading(text = '加载中...') {
+  loadingText.textContent = text;
+  loading.style.display = 'block';
+}
+
+function hideLoading() {
+  loading.style.display = 'none';
+}
+
+/** 显示操作结果消息（自动 3 秒后隐藏） */
+function showMessage(text, type = 'success') {
+  message.textContent = text;
+  message.className = `message ${type}`;
+  message.style.display = 'block';
+  setTimeout(() => { message.style.display = 'none'; }, 3000);
+}
+
+function formatFileSize(bytes) {
+  if (bytes === 0) return '0 Bytes';
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function calculateSpeed(currentBytes) {
+  const now = Date.now();
+  if (lastUpdateTime === 0) { lastUpdateTime = now; uploadedBytes = currentBytes; return 0; }
+  const elapsed = (now - lastUpdateTime) / 1000;
+  if (elapsed > 0.5) {
+    const speed = (currentBytes - uploadedBytes) / elapsed / 1024;
+    speedHistory.push(speed);
+    if (speedHistory.length > 10) speedHistory.shift();
+    uploadedBytes = currentBytes;
+    lastUpdateTime = now;
+    return speedHistory.reduce((a, b) => a + b, 0) / speedHistory.length;
+  }
+  return speedHistory.length > 0 ? speedHistory[speedHistory.length - 1] : 0;
+}
+
+// ── 目录管理 ────────────────────────────────────────────────────────────────────
+
+/**
+ * 修复：option 元素不支持内嵌 HTML，使用纯文本拼接保护标识。
+ */
+function populateDirSelect(selectedDir = '') {
+  dirSelect.innerHTML = dirList.map(dir => {
+    const lock = dir.protected ? ' 🔒' : '';
+    const isSelected = dir.path === selectedDir ? 'selected' : '';
+    return `<option value="${escAttr(dir.path)}" ${isSelected}>${escText(dir.name)}${lock}</option>`;
+  }).join('');
+}
+
+function populateUploadDirSelect() {
+  const makeOpt = dir => {
+    const lock = dir.protected ? ' 🔒' : '';
+    const isSel = dir.path === currentDir ? 'selected' : '';
+    return `<option value="${escAttr(dir.path)}" ${isSel}>${escText(dir.name)}${lock}</option>`;
+  };
+  uploadTargetDir.innerHTML = allDirs.map(makeOpt).join('');
+  createTargetDir.innerHTML = allDirs.map(makeOpt).join('');
+}
+
+/** 简易 HTML attribute 和 text 转义（防 XSS） */
+function escAttr(str) { return String(str).replace(/"/g, '&quot;'); }
+function escText(str) { return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+
+async function loadAllDirectories() {
+  try {
+    const resp = await fetch('/api/all-directories');
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    allDirs = data.directories || [];
+    populateUploadDirSelect();
+  } catch (err) {
+    console.error('加载目录失败：', err);
+    showMessage('加载目录失败，请重试', 'error');
+  }
+}
+
+async function loadDirectoryTree() {
+  try {
+    const resp = await fetch('/api/directories');
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    dirList = flattenDirectories(data.directories || []);
+    populateDirSelect(currentDir);
+  } catch (err) {
+    console.error('加载目录树失败：', err);
+  }
+}
+
+function flattenDirectories(dirs, parentPath = '', result = []) {
+  result.push({ name: parentPath || '主目录', path: parentPath, protected: false });
+  dirs.forEach(dir => {
+    const fullPath = parentPath ? `${parentPath}/${dir.name}` : dir.name;
+    result.push({ name: fullPath, path: fullPath, protected: dir.protected || false });
+    if (dir.children && dir.children.length > 0) {
+      flattenDirectories(dir.children, fullPath, result);
+    }
+  });
+  return result;
+}
+
+// ── 密码模态框 ──────────────────────────────────────────────────────────────────
+
+function showPasswordModal(dirPath, autoPlay = false, isUpload = false, targetDir = '', file = null) {
+  currentProtectedDir = dirPath;
+  if (isUpload && file && targetDir) {
+    pendingUploadFile = file;
+    pendingUploadDir  = targetDir;
+  }
+  modalPassword.value = '';
+  modalMessage.textContent = '请输入访问密码';
+  modalMessage.className = 'info';
+  modalMessage.style.display = 'block';
+  passwordModal.style.display = 'flex';  // ← 覆盖 display:none，显示为 flex
+  modalPassword.focus();
+}
+
+function hidePasswordModal() {
+  passwordModal.style.display = 'none';
+  currentProtectedDir = null;
+  modalPassword.value = '';
+}
+
+async function verifyDirectoryPassword(password) {
+  try {
+    const fd = new FormData();
+    fd.append('dir_path', currentProtectedDir);
+    fd.append('password', password);
+    const resp = await fetch('/api/verify-dir-password', {
+      method: 'POST', body: fd, credentials: 'include'
+    });
+    const result = await resp.json();
+
+    if (result.success) {
+      hidePasswordModal();
+      showMessage('验证成功！正在加载目录...');
+      saveLastVisitedDir(currentDir);
+      await loadMediaInDir(currentDir, true);
+      populateDirSelect(currentDir);
+
+      if (pendingUploadFile && pendingUploadDir) {
+        const f = pendingUploadFile, d = pendingUploadDir;
+        pendingUploadFile = null; pendingUploadDir = '';
+        performUpload(d, f);
+      }
+      return true;
+    } else {
+      modalMessage.textContent = '密码错误，请重试';
+      modalMessage.className = 'error';
+      return false;
+    }
+  } catch (err) {
+    console.error('验证密码失败:', err);
+    modalMessage.textContent = '验证失败：' + err.message;
+    modalMessage.className = 'error';
+    return false;
+  }
+}
+
+// ── 媒体加载 ────────────────────────────────────────────────────────────────────
+
+async function loadMediaInDir(subdir, isAfterAuth = false) {
+  try {
+    showLoading('加载媒体列表中...');
+    currentDir = subdir;
+    saveLastVisitedDir(subdir);
+
+    const url = subdir ? `/api/media?subdir=${encodeURIComponent(subdir)}` : '/api/media';
+    const resp = await fetch(url, { credentials: 'include' });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const data = await resp.json();
+    mediaList = data.media || [];
+
+    // 受保护目录且尚未认证
+    if (!isAfterAuth && data.protected && mediaList.length === 0) {
+      protectedIndicator.style.display = 'inline-block';
+      if (data.top_protected_dir) {
+        hideLoading();
+        showPasswordModal(data.top_protected_dir, false);
+        return;
+      }
+    } else {
+      protectedIndicator.style.display = data.protected ? 'inline-block' : 'none';
+    }
+
+    currentDirPath.textContent = currentDir ? `/${currentDir}` : '/';
+    totalMediaCount.textContent = mediaList.length;
+
+    // 填充媒体选择框
+    mediaSelect.innerHTML = mediaList.map((media, idx) => {
+      const icon = media.type === 'image' ? '🖼️' : (media.type === 'audio' ? '🎵' : '📹');
+      const size = media.size ? ` (${formatFileSize(media.size)})` : '';
+      return `<option value="${idx}">${icon} ${escText(media.name)}${size}</option>`;
+    }).join('');
+
+    if (mediaList.length > 0) {
+      await playMedia(0);
+    } else {
+      hideAllMedia();
+      currentMediaName.textContent = '无';
+      mediaTypeBadge.style.display = 'none';
+      currentIndex = -1;
+    }
+
+    updateButtons();
+    hideLoading();
+  } catch (err) {
+    console.error('加载媒体失败：', err);
+    hideLoading();                                     // ← 修复：错误时正确隐藏 loading
+    showMessage(`加载失败: ${err.message}`, 'error');
+  }
+}
+
+function hideAllMedia() {
+  videoPlayer.pause(); audioPlayer.pause();
+  videoPlayer.src = ''; audioPlayer.src = ''; imageViewer.src = '';
+  videoPlayer.style.display = 'none';
+  audioPlayer.style.display = 'none';
+  imageViewer.style.display = 'none';
+}
+
+/**
+ * 构建媒体 URL。
+ * 注意：不再对视频/音频 URL 添加时间戳，避免影响断点续传 Range 请求。
+ * 图片添加时间戳以防止缓存旧内容。
+ */
+function buildMediaUrl(media) {
+  const base = currentDir
+    ? `/api/media/${encodeURIComponent(currentDir)}/${encodeURIComponent(media.name)}`
+    : `/api/media/${encodeURIComponent(media.name)}`;
+  return media.type === 'image' ? base + '?t=' + Date.now() : base;
+}
+
+async function playMedia(idx) {
+  if (idx < 0 || idx >= mediaList.length) return;
+  showLoading('加载媒体中...');
+  currentIndex = idx;
+  const media = mediaList[idx];
+
+  currentMediaName.textContent = media.name;
+  if (media.type === 'video') {
+    mediaTypeBadge.textContent = '视频'; mediaTypeBadge.className = 'media-type-badge type-video';
+  } else if (media.type === 'audio') {
+    mediaTypeBadge.textContent = '音频'; mediaTypeBadge.className = 'media-type-badge type-audio';
+  } else {
+    mediaTypeBadge.textContent = '图片'; mediaTypeBadge.className = 'media-type-badge type-image';
+  }
+  mediaTypeBadge.style.display = 'inline-block';
+  hideAllMedia();
+
+  const mediaUrl = buildMediaUrl(media);
+
+  try {
+    if (media.type === 'video') {
+      videoPlayer.src = mediaUrl;
+      videoPlayer.style.display = 'block';
+      videoPlayer.oncanplay = () => hideLoading();
+      videoPlayer.onerror = () => {
+        hideLoading();
+        showMessage('视频加载失败，请检查文件', 'error');
+      };
+      await videoPlayer.play().catch(err => { console.warn('自动播放失败:', err); hideLoading(); });
+
+    } else if (media.type === 'audio') {
+      audioPlayer.src = mediaUrl;
+      audioPlayer.style.display = 'block';
+      audioPlayer.oncanplay = () => hideLoading();
+      audioPlayer.onerror = () => {
+        hideLoading();
+        showMessage('音频加载失败，请检查文件', 'error');
+      };
+      await audioPlayer.play().catch(err => { console.warn('自动播放失败:', err); hideLoading(); });
+
+    } else {
+      imageViewer.style.display = 'block';
+      imageViewer.onload  = () => hideLoading();
+      imageViewer.onerror = () => {
+        hideLoading();
+        showMessage('图片加载失败，请检查文件或路径', 'error');
+      };
+      imageViewer.src = mediaUrl;
+    }
+
+    mediaSelect.value = idx;
+    updateButtons();
+  } catch (err) {
+    hideLoading();
+    showMessage(`播放失败: ${err.message}`, 'error');
+  }
+}
+
+function updateButtons() {
+  prevBtn.disabled = currentIndex <= 0;
+  nextBtn.disabled = currentIndex >= mediaList.length - 1;
+}
+
+// ── 上传功能 ────────────────────────────────────────────────────────────────────
+
+async function performUpload(targetDir, file) {
+  uploadBtn.disabled = true;
+  uploadProgress.style.display = 'block';
+  progressBar.style.width = '0%';
+  progressPercent.textContent = '0%';
+  progressDetails.textContent = '0 MB / 0 MB';
+  uploadSpeed.textContent = '0 KB/s';
+  speedHistory = []; lastUpdateTime = 0; uploadedBytes = 0; totalBytes = file.size;
+  uploadStartTime = Date.now();
+
+  return new Promise((resolve) => {
+    const fd = new FormData();
+    fd.append('target_dir', targetDir);
+    fd.append('file', file);
+
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', '/api/upload-media');
+
+    xhr.upload.onprogress = (e) => {
+      if (!e.lengthComputable) return;
+      const pct = Math.round((e.loaded / e.total) * 100);
+      progressBar.style.width = pct + '%';
+      progressPercent.textContent = pct + '%';
+      progressDetails.textContent = `${formatFileSize(e.loaded)} / ${formatFileSize(e.total)}`;
+      const spd = calculateSpeed(e.loaded);
+      uploadSpeed.textContent = spd > 1024
+        ? `${(spd / 1024).toFixed(1)} MB/s`
+        : `${Math.round(spd)} KB/s`;
+    };
+
+    xhr.onload = () => {
+      uploadProgress.style.display = 'none';
+      uploadBtn.disabled = false;
+      try {
+        const result = JSON.parse(xhr.responseText);
+        if (result.success) {
+          showMessage(result.message);
+          mediaFile.value = '';
+          fileInfo.textContent = '';
+          // 刷新媒体列表
+          loadAllDirectories();
+          if (currentDir === targetDir) loadMediaInDir(currentDir, true);
+        } else {
+          showMessage(result.message || '上传失败', 'error');
         }
+      } catch (e) {
+        showMessage('上传响应解析失败', 'error');
+      }
+      resolve();
+    };
 
-        // 工具函数：保存上次访问目录到本地存储
-        function saveLastVisitedDir(dirPath) {
-            try {
-                localStorage.setItem(LAST_VISITED_DIR_KEY, dirPath);
-            } catch (e) {
-                console.warn('保存本地存储失败:', e);
-            }
-        }
+    xhr.onerror = () => {
+      uploadProgress.style.display = 'none';
+      uploadBtn.disabled = false;
+      showMessage('网络错误，上传失败', 'error');
+      resolve();
+    };
 
-        // 显示加载状态
-        function showLoading(text = '加载中...') {
-            loadingText.textContent = text;
-            loading.style.display = 'block';
-        }
+    xhr.send(fd);
+  });
+}
 
-        // 隐藏加载状态
-        function hideLoading() {
-            loading.style.display = 'none';
-        }
+// ── 创建目录 ────────────────────────────────────────────────────────────────────
 
-        // 显示消息
-        function showMessage(text, type = 'success') {
-            message.textContent = text;
-            message.className = `message ${type}`;
-            message.style.display = 'block';
-            
-            setTimeout(() => {
-                message.style.display = 'none';
-            }, 3000);
-        }
+async function createDirectory() {
+  const targetPath = createTargetDir.value || '';
+  const dirName    = newDirName.value.trim();
+  const password   = dirPassword.value.trim();
 
-        // 格式化文件大小
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 Bytes';
-            const k = 1024;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-        }
+  if (!dirName) { showMessage('请输入目录名称', 'error'); return; }
 
-        // 计算上传速度
-        function calculateSpeed(currentBytes) {
-            const now = Date.now();
-            if (lastUpdateTime === 0) {
-                lastUpdateTime = now;
-                uploadedBytes = currentBytes;
-                return 0;
-            }
-            
-            const elapsed = (now - lastUpdateTime) / 1000; // 秒
-            if (elapsed > 0.5) { // 至少0.5秒更新一次
-                const speed = (currentBytes - uploadedBytes) / elapsed / 1024; // KB/s
-                speedHistory.push(speed);
-                
-                if (speedHistory.length > 10) {
-                    speedHistory.shift();
-                }
-                
-                const avgSpeed = speedHistory.reduce((a, b) => a + b, 0) / speedHistory.length;
-                
-                uploadedBytes = currentBytes;
-                lastUpdateTime = now;
-                
-                return avgSpeed;
-            }
-            
-            return speedHistory.length > 0 ? speedHistory[speedHistory.length - 1] : 0;
-        }
+  try {
+    const fd = new FormData();
+    fd.append('target_path', targetPath);
+    fd.append('new_dir', dirName);
+    if (password) fd.append('dir_password', password);
 
-        // 扁平化目录结构
-        function flattenDirectories(dirs, parentPath = "", result = []) {
-            result.push({ name: parentPath || "主目录", path: parentPath, protected: false });
-            dirs.forEach(dir => {
-                const fullPath = parentPath ? `${parentPath}/${dir.name}` : dir.name;
-                result.push({ 
-                    name: fullPath, 
-                    path: fullPath, 
-                    protected: dir.protected || false 
-                });
-                if (dir.children && dir.children.length > 0) {
-                    flattenDirectories(dir.children, fullPath, result);
-                }
-            });
-            return result;
-        }
+    const resp = await fetch('/api/create-directory', { method: 'POST', body: fd });
+    const result = await resp.json();
 
-        // 初始化目录选择框（新增：选中指定目录）
-        function populateDirSelect(selectedDir = "") {
-            dirSelect.innerHTML = dirList.map(dir => {
-                const protectedBadge = dir.protected ? '<span class="protected-badge">🔒</span>' : '';
-                const isSelected = dir.path === selectedDir ? 'selected' : '';
-                return `<option value="${dir.path}" ${isSelected}>${dir.name}${protectedBadge}</option>`;
-            }).join('');
-        }
+    if (result.success) {
+      showMessage(result.message);
+      newDirName.value = '';
+      dirPassword.value = '';
+      // 刷新所有目录列表
+      await Promise.all([loadAllDirectories(), loadDirectoryTree()]);
+    } else {
+      showMessage(result.message || '创建失败', 'error');
+    }
+  } catch (err) {
+    console.error('创建目录失败:', err);
+    showMessage(`创建失败: ${err.message}`, 'error');
+  }
+}
 
-        // 加载目录列表
-        async function loadAllDirectories() {
-            try {
-                const response = await fetch('/api/all-directories');
-                if (!response.ok) throw new Error('Network response was not ok');
-                
-                const data = await response.json();
-                allDirs = data.directories || [];
-                
-                // 填充上传目录选择框
-                uploadTargetDir.innerHTML = allDirs.map(dir => {
-                    const protectedBadge = dir.protected ? '<span class="protected-badge">🔒</span>' : '';
-                    const isSelected = dir.path === currentDir ? 'selected' : '';
-                    return `<option value="${dir.path}" ${isSelected}>${dir.name}${protectedBadge}</option>`;
-                }).join('');
-                
-                // 填充创建目录的父目录选择框
-                createTargetDir.innerHTML = allDirs.map(dir => {
-                    const protectedBadge = dir.protected ? '<span class="protected-badge">🔒</span>' : '';
-                    return `<option value="${dir.path}">${dir.name}${protectedBadge}</option>`;
-                }).join('');
-                
-            } catch (err) {
-                console.error('加载目录失败：', err);
-                showMessage('加载目录失败，请重试', 'error');
-            }
-        }
+// ── 事件绑定 ────────────────────────────────────────────────────────────────────
 
-        // 加载受保护目录列表
-        async function loadProtectedDirectories() {
-            try {
-                const response = await fetch('/api/protected-directories');
-                if (!response.ok) throw new Error('Network response was not ok');
-                
-                const data = await response.json();
-                protectedDirs = data.protected_dirs || [];
-                
-            } catch (err) {
-                console.error('加载受保护目录失败：', err);
-            }
-        }
+dirSelect.addEventListener('change', async () => {
+  const selected = dirSelect.value;
+  currentDir = selected;
+  await loadMediaInDir(selected);
+  // 同步上传目标目录选中状态
+  uploadTargetDir.value = selected;
+});
 
-        // 显示密码模态框（支持上传场景）
-        function showPasswordModal(dirPath, autoPlay = false, isUpload = false, targetDir = "", file = null) {
-            console.log('showPasswordModal:', { dirPath, isUpload, targetDir, file: !!file });
-            
-            currentProtectedDir = dirPath;
-            shouldAutoPlayAfterAuth = autoPlay;
-            
-            // 保存上传信息到全局变量
-            if (isUpload && file && targetDir) {
-                pendingUploadFile = file;
-                pendingUploadDir = targetDir;
-                console.log('保存上传信息:', { fileName: file.name, targetDir });
-            }
-            
-            modalPassword.value = '';
-            modalMessage.textContent = '请输入访问密码';
-            modalMessage.className = 'info';
-            modalMessage.style.display = 'block';
-            passwordModal.style.display = 'flex';
-            modalPassword.focus();
-        }
+mediaSelect.addEventListener('change', () => {
+  const idx = parseInt(mediaSelect.value, 10);
+  if (!isNaN(idx)) playMedia(idx);
+});
 
-        // 隐藏密码模态框
-        function hidePasswordModal() {
-            passwordModal.style.display = 'none';
-            currentProtectedDir = null;
-            shouldAutoPlayAfterAuth = false;
-            modalPassword.value = '';
-        }
+prevBtn.addEventListener('click', () => { if (currentIndex > 0) playMedia(currentIndex - 1); });
+nextBtn.addEventListener('click', () => { if (currentIndex < mediaList.length - 1) playMedia(currentIndex + 1); });
 
-        // 验证目录密码（核心修复：保持目录状态，不刷新页面）
-        async function verifyDirectoryPassword(password) {
-            try {
-                console.log('验证密码:', { dirPath: currentProtectedDir, currentDir });
-                
-                const formData = new FormData();
-                formData.append('dir_path', currentProtectedDir);
-                formData.append('password', password);
-                
-                const response = await fetch('/api/verify-dir-password', {
-                    method: 'POST',
-                    body: formData,
-                    credentials: 'include'
-                });
-                
-                const result = await response.json();
-                console.log('验证结果:', result);
-                
-                if (result.success) {
-                    hidePasswordModal();
-                    showMessage('验证成功！正在加载目录...');
-                    
-                    // 关键修复1：保存当前目录到本地存储，持久化状态
-                    saveLastVisitedDir(currentDir);
-                    
-                    // 关键修复2：重新加载当前目录，强制刷新媒体列表
-                    await loadMediaInDir(currentDir, true); // 第二个参数表示"验证后加载"，跳过密码检查
-                    
-                    // 关键修复3：更新目录选择框，确保选中当前目录
-                    populateDirSelect(currentDir);
-                    
-                    // 检查是否有等待上传的文件
-                    if (pendingUploadFile && pendingUploadDir) {
-                        console.log('开始上传加密目录文件:', { 
-                            fileName: pendingUploadFile.name, 
-                            targetDir: pendingUploadDir 
-                        });
-                        performUpload(pendingUploadDir, pendingUploadFile);
-                        pendingUploadFile = null;
-                        pendingUploadDir = "";
-                    }
-                    
-                    return true;
-                } else {
-                    modalMessage.textContent = '密码错误，请重试';
-                    modalMessage.className = 'error';
-                    return false;
-                }
-            } catch (err) {
-                console.error('验证密码失败:', err);
-                modalMessage.textContent = '验证失败：' + err.message;
-                modalMessage.className = 'error';
-                return false;
-            }
-        }
+// 视频播放结束后自动下一个
+videoPlayer.addEventListener('ended', () => {
+  if (currentIndex < mediaList.length - 1) playMedia(currentIndex + 1);
+});
+audioPlayer.addEventListener('ended', () => {
+  if (currentIndex < mediaList.length - 1) playMedia(currentIndex + 1);
+});
 
-        // 加载媒体文件列表（核心修复：添加验证后加载标记，持久化目录状态）
-        async function loadMediaInDir(subdir, isAfterAuth = false) {
-            try {
-                showLoading('加载媒体列表中...');
-                
-                // 关键修复1：保存当前目录到全局变量和本地存储
-                currentDir = subdir;
-                saveLastVisitedDir(subdir);
-                
-                const url = subdir ? `/api/media?subdir=${encodeURIComponent(subdir)}` : '/api/media';
-                const response = await fetch(url, {
-                    credentials: 'include'
-                });
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                mediaList = data.media || [];
-                
-                // 关键修复2：验证后加载时，跳过密码模态框（已验证通过）
-                if (!isAfterAuth && data.protected) {
-                    protectedIndicator.style.display = 'inline-block';
-                    if (data.top_protected_dir) {
-                        showPasswordModal(data.top_protected_dir, mediaList.length > 0);
-                        hideLoading();
-                        return;
-                    }
-                } else {
-                    protectedIndicator.style.display = data.protected ? 'inline-block' : 'none';
-                }
-                
-                // 更新UI
-                currentDirPath.textContent = currentDir ? `/${currentDir}` : '/';
-                totalMediaCount.textContent = mediaList.length;
+// 文件选择信息显示
+mediaFile.addEventListener('change', () => {
+  if (mediaFile.files.length > 0) {
+    const f = mediaFile.files[0];
+    fileInfo.textContent = `已选择: ${f.name} (${formatFileSize(f.size)})`;
+  } else {
+    fileInfo.textContent = '';
+  }
+});
 
-                // 填充媒体选择框
-                mediaSelect.innerHTML = mediaList.map((media, idx) => {
-                    let typeIcon = '📹';
-                    if (media.type === 'image') typeIcon = '🖼️';
-                    if (media.type === 'audio') typeIcon = '🎵';
-                    const sizeInfo = media.size ? ` (${formatFileSize(media.size)})` : '';
-                    return `<option value="${idx}">${typeIcon} ${media.name}${sizeInfo}</option>`;
-                }).join('');
+// 上传按钮
+uploadBtn.addEventListener('click', async () => {
+  const file = mediaFile.files[0];
+  if (!file) { showMessage('请选择要上传的文件', 'error'); return; }
+  const targetDir = uploadTargetDir.value || '';
 
-                // 如果有媒体，默认播放第一个
-                if (mediaList.length > 0) {
-                    await playMedia(0);
-                } else {
-                    hideAllMedia();
-                    currentMediaName.textContent = "无";
-                    mediaTypeBadge.style.display = 'none';
-                    currentIndex = -1;
-                }
+  // 检查受保护目录认证
+  try {
+    const resp = await fetch(`/api/media?subdir=${encodeURIComponent(targetDir)}`, { credentials: 'include' });
+    const data = await resp.json();
+    if (data.protected && !data.media) {
+      // 未认证，弹出密码框
+      showPasswordModal(data.top_protected_dir, false, true, targetDir, file);
+      return;
+    }
+  } catch (e) { /* 忽略检查失败，直接尝试上传 */ }
 
-                updateButtons();
-                hideLoading();
-                
-            } catch (err) {
-                console.error('加载媒体失败：', err);
-                showLoading('加载媒体失败，请重试', true);
-                showMessage(`加载失败: ${err.message}`, 'error');
-            }
-        }
+  performUpload(targetDir, file);
+});
 
-        // 隐藏所有媒体播放器
-        function hideAllMedia() {
-            videoPlayer.style.display = 'none';
-            audioPlayer.style.display = 'none';
-            imageViewer.style.display = 'none';
-            videoPlayer.pause();
-            audioPlayer.pause();
-            videoPlayer.src = "";
-            audioPlayer.src = "";
-            imageViewer.src = "";
-        }
+// 创建目录按钮
+createDirBtn.addEventListener('click', createDirectory);
 
-        // 构建媒体URL
-        function buildMediaUrl(media) {
-            let url;
-            if (currentDir) {
-                url = `/api/media/${encodeURIComponent(currentDir)}/${encodeURIComponent(media.name)}`;
-            } else {
-                url = `/api/media/${encodeURIComponent(media.name)}`;
-            }
-            // 添加时间戳防止缓存
-            return url + '?t=' + Date.now();
-        }
+// 模态框按钮
+confirmBtn.addEventListener('click', () => {
+  const pwd = modalPassword.value;
+  if (!pwd) { modalMessage.textContent = '请输入密码'; modalMessage.className = 'error'; return; }
+  verifyDirectoryPassword(pwd);
+});
 
-        // 播放媒体文件
-        async function playMedia(idx) {
-            if (idx < 0 || idx >= mediaList.length) return;
-            
-            showLoading('加载媒体中...');
-            currentIndex = idx;
-            const media = mediaList[currentIndex];
-            
-            try {
-                // 更新信息显示
-                currentMediaName.textContent = media.name;
-                
-                if (media.type === 'video') {
-                    mediaTypeBadge.textContent = '视频';
-                    mediaTypeBadge.className = 'media-type-badge type-video';
-                } else if (media.type === 'audio') {
-                    mediaTypeBadge.textContent = '音频';
-                    mediaTypeBadge.className = 'media-type-badge type-audio';
-                } else {
-                    mediaTypeBadge.textContent = '图片';
-                    mediaTypeBadge.className = 'media-type-badge type-image';
-                }
-                
-                mediaTypeBadge.style.display = 'inline-block';
+cancelBtn.addEventListener('click', () => {
+  hidePasswordModal();
+  pendingUploadFile = null; pendingUploadDir = '';
+});
 
-                // 隐藏所有媒体
-                hideAllMedia();
+modalPassword.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') confirmBtn.click();
+});
 
-                // 构建URL
-                const mediaUrl = buildMediaUrl(media);
-                
-                if (media.type === 'video') {
-                    // 视频处理
-                    videoPlayer.src = mediaUrl;
-                    videoPlayer.style.display = 'block';
-                    
-                    videoPlayer.oncanplay = function() {
-                        hideLoading();
-                    };
-                    
-                    videoPlayer.onerror = function(e) {
-                        console.error('Video error:', e);
-                        showLoading('视频加载失败', true);
-                        showMessage('视频加载失败，请检查文件', 'error');
-                        setTimeout(hideLoading, 2000);
-                    };
-                    
-                    await videoPlayer.play().catch(err => {
-                        console.warn('自动播放失败:', err);
-                        hideLoading();
-                    });
-                    
-                } else if (media.type === 'audio') {
-                    // 音频处理
-                    audioPlayer.src = mediaUrl;
-                    audioPlayer.style.display = 'block';
-                    
-                    audioPlayer.oncanplay = function() {
-                        hideLoading();
-                    };
-                    
-                    audioPlayer.onerror = function(e) {
-                        console.error('Audio error:', e);
-                        showLoading('音频加载失败', true);
-                        showMessage('音频加载失败，请检查文件', 'error');
-                        setTimeout(hideLoading, 2000);
-                    };
-                    
-                    await audioPlayer.play().catch(err => {
-                        console.warn('自动播放失败:', err);
-                        hideLoading();
-                    });
-                    
-                } else {
-                    // 图片处理
-                    imageViewer.style.display = 'block';
-                    imageViewer.onload = function() {
-                        hideLoading();
-                        console.log('图片加载成功:', mediaUrl);
-                    };
-                    
-                    imageViewer.onerror = function(e) {
-                        console.error('图片加载失败:', e, mediaUrl);
-                        showLoading('图片加载失败', true);
-                        showMessage('图片加载失败，请检查文件或路径', 'error');
-                        setTimeout(hideLoading, 2000);
-                    };
-                    
-                    imageViewer.src = '';
-                    imageViewer.src = mediaUrl;
-                }
-                
-                mediaSelect.value = idx;
-                updateButtons();
-                
-            } catch (err) {
-                console.error('播放媒体失败:', err);
-                showLoading('播放失败', true);
-                showMessage(`播放失败: ${err.message}`, 'error');
-                setTimeout(hideLoading, 2000);
-            }
-        }
+// 键盘快捷键（左/右箭头切换媒体）
+document.addEventListener('keydown', (e) => {
+  if (passwordModal.style.display === 'flex') return;
+  if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
+  if (e.key === 'ArrowLeft' && !prevBtn.disabled) prevBtn.click();
+  if (e.key === 'ArrowRight' && !nextBtn.disabled) nextBtn.click();
+});
 
-        // 更新按钮状态
-        function updateButtons() {
-            prevBtn.disabled = currentIndex <= 0;
-            nextBtn.disabled = currentIndex >= mediaList.length - 1;
-        }
+// ── 页面初始化 ──────────────────────────────────────────────────────────────────
+async function init() {
+  showLoading('初始化中...');
+  try {
+    await Promise.all([loadAllDirectories(), loadDirectoryTree()]);
 
-        // 创建目录
-        async function createDirectory() {
-            const targetPath = createTargetDir.value || "";
-            const dirName = newDirName.value.trim();
-            const password = dirPassword.value.trim();
-            
-            if (!dirName) {
-                showMessage('请输入目录名称', 'error');
-                return;
-            }
-            
-            try {
-                const formData = new FormData();
-                formData.append('target_path', targetPath);
-                formData.append('new_dir', dirName);
-                if (password) {
-                    formData.append('dir_password', password);
-                }
-                
-                const response = await fetch('/api/create-directory', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    showMessage(result.message);
-                    newDirName.value = '';
-                    dirPassword.value = '';
-                    
-                    // 重新加载目录列表，并选中新创建的目录
-                    await loadAllDirectories();
-                    await loadProtectedDirectories();
-                    
-                    const dirResponse = await fetch('/api/directories');
-                    const dirData = await dirResponse.json();
-                    dirList = flattenDirectories(dirData.directories);
-                    populateDirSelect(result.path); // 选中新目录
-                    
-                    // 加载新目录的媒体列表
-                    await loadMediaInDir(result.path);
-                    
-                } else {
-                    showMessage(result.message || '创建目录失败', 'error');
-                }
-                
-            } catch (err) {
-                console.error('创建目录失败:', err);
-                showMessage('创建目录失败：' + err.message, 'error');
-            }
-        }
+    // 恢复上次访问的目录
+    const lastDir = getLastVisitedDir();
+    const targetDir = (lastDir && dirList.some(d => d.path === lastDir)) ? lastDir : '';
 
-        // 检查目录是否受保护
-        function isDirectoryProtected(dirPath) {
-            return protectedDirs.some(pdir => dirPath === pdir || dirPath.startsWith(pdir + '/'));
-        }
+    if (dirSelect.options.length > 0) {
+      dirSelect.value = targetDir;
+      currentDir = targetDir;
+    }
 
-        // 获取顶级受保护目录
-        function getTopProtectedDirectory(dirPath) {
-            for (const pdir of protectedDirs) {
-                if (dirPath === pdir || dirPath.startsWith(pdir + '/')) {
-                    return pdir;
-                }
-            }
-            return null;
-        }
+    await loadMediaInDir(targetDir);
+  } catch (err) {
+    console.error('初始化失败:', err);
+    hideLoading();
+    showMessage('初始化失败，请刷新页面重试', 'error');
+  }
+}
 
-        // 检查是否有认证Cookie
-        function hasAuthCookie(dirPath) {
-            const topDir = getTopProtectedDirectory(dirPath);
-            if (!topDir) return true;
-            const cookieName = `auth_${encodeURIComponent(topDir)}`;
-            return document.cookie.includes(cookieName);
-        }
-
-        // 上传媒体文件
-        async function uploadMedia() {
-            const file = mediaFile.files[0];
-            if (!file) {
-                showMessage('请选择要上传的媒体文件', 'error');
-                return;
-            }
-            
-            const targetDir = uploadTargetDir.value;
-            if (!targetDir) {
-                showMessage('请选择目标目录', 'error');
-                return;
-            }
-            
-            console.log('准备上传:', { fileName: file.name, targetDir, size: file.size });
-            
-            if (isDirectoryProtected(targetDir) && !hasAuthCookie(targetDir)) {
-                const topDir = getTopProtectedDirectory(targetDir);
-                showMessage('目标目录需要密码验证，请输入密码', 'info');
-                showPasswordModal(topDir, false, true, targetDir, file);
-                return;
-            }
-            
-            performUpload(targetDir, file);
-        }
-
-        // 实际执行上传函数
-        function performUpload(targetDir, file) {
-            if (!file || !targetDir) {
-                showMessage('上传参数缺失', 'error');
-                console.error('上传参数缺失:', { hasFile: !!file, hasDir: !!targetDir });
-                return;
-            }
-            
-            console.log('开始上传:', { 
-                targetDir, 
-                fileName: file.name, 
-                size: formatFileSize(file.size),
-                type: file.type 
-            });
-            
-            fileInfo.textContent = `文件名: ${file.name} | 大小: ${formatFileSize(file.size)}`;
-            uploadProgress.style.display = 'block';
-            
-            uploadStartTime = Date.now();
-            uploadedBytes = 0;
-            totalBytes = file.size;
-            speedHistory = [];
-            lastUpdateTime = 0;
-            
-            const formData = new FormData();
-            formData.append('target_dir', targetDir);
-            formData.append('file', file);
-            
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', '/api/upload-media', true);
-            xhr.withCredentials = true;
-            
-            xhr.upload.addEventListener('progress', (e) => {
-                if (e.lengthComputable) {
-                    const percent = (e.loaded / e.total) * 100;
-                    progressBar.style.width = `${percent}%`;
-                    progressPercent.textContent = `${Math.round(percent)}%`;
-                    progressDetails.textContent = `${formatFileSize(e.loaded)} / ${formatFileSize(e.total)}`;
-                    
-                    const speed = calculateSpeed(e.loaded);
-                    if (speed > 1024) {
-                        uploadSpeed.textContent = `${(speed / 1024).toFixed(2)} MB/s`;
-                    } else {
-                        uploadSpeed.textContent = `${speed.toFixed(0)} KB/s`;
-                    }
-                    
-                    if (percent > 0 && percent < 100) {
-                        const elapsed = (Date.now() - uploadStartTime) / 1000;
-                        const totalTime = elapsed / (percent / 100);
-                        const remaining = totalTime - elapsed;
-                        
-                        if (remaining > 60) {
-                            uploadSpeed.textContent += ` | 剩余: ${Math.round(remaining / 60)} 分钟`;
-                        } else {
-                            uploadSpeed.textContent += ` | 剩余: ${Math.round(remaining)} 秒`;
-                        }
-                    }
-                }
-            });
-            
-            xhr.addEventListener('load', () => {
-                console.log('上传响应:', { status: xhr.status, response: xhr.responseText });
-                
-                try {
-                    const result = JSON.parse(xhr.responseText);
-                    
-                    if (result.success) {
-                        progressBar.style.width = '100%';
-                        progressPercent.textContent = '100%';
-                        uploadSpeed.textContent = '上传完成！';
-                        showMessage(result.message);
-                        mediaFile.value = '';
-                        fileInfo.textContent = '';
-                        
-                        if (targetDir === currentDir) {
-                            setTimeout(() => {
-                                loadMediaInDir(currentDir);
-                            }, 1000);
-                        }
-                        
-                    } else {
-                        showMessage(result.message || '上传失败', 'error');
-                    }
-                } catch (err) {
-                    showMessage('上传完成但处理响应失败: ' + err.message, 'error');
-                    console.error('解析响应失败:', err, xhr.responseText);
-                }
-                
-                setTimeout(() => {
-                    uploadProgress.style.display = 'none';
-                }, 3000);
-            });
-            
-            xhr.addEventListener('error', (e) => {
-                console.error('上传错误:', e);
-                showMessage('上传失败：网络错误', 'error');
-                uploadProgress.style.display = 'none';
-            });
-            
-            xhr.addEventListener('abort', () => {
-                console.log('上传被取消');
-                showMessage('上传已取消', 'info');
-                uploadProgress.style.display = 'none';
-            });
-            
-            xhr.send(formData);
-        }
-
-        // 初始化应用（核心修复：优先加载上次访问目录）
-        async function initApp() {
-            try {
-                showLoading('初始化中...');
-                
-                // 关键修复1：获取上次访问的目录（优先于默认根目录）
-                const lastDir = getLastVisitedDir();
-                console.log('初始化 - 上次访问目录:', lastDir);
-                
-                // 加载目录列表
-                const dirResponse = await fetch('/api/directories');
-                const dirData = await dirResponse.json();
-                dirList = flattenDirectories(dirData.directories);
-                
-                // 关键修复2：初始化目录选择框时，选中上次访问的目录
-                populateDirSelect(lastDir);
-                
-                // 加载所有目录（用于上传）
-                await loadAllDirectories();
-                
-                // 加载受保护目录列表
-                await loadProtectedDirectories();
-                
-                // 关键修复3：优先加载上次访问的目录，而不是默认根目录
-                const initDir = lastDir || "";
-                await loadMediaInDir(initDir);
-                
-                hideLoading();
-            } catch (err) {
-                console.error('初始化失败:', err);
-                showMessage('初始化失败：' + err.message, 'error');
-                hideLoading();
-            }
-        }
-
-        // 事件监听器
-        dirSelect.addEventListener('change', (e) => {
-            const selectedDir = e.target.value;
-            loadMediaInDir(selectedDir);
-        });
-
-        mediaSelect.addEventListener('change', (e) => {
-            playMedia(parseInt(e.target.value));
-        });
-
-        prevBtn.addEventListener('click', () => {
-            if (currentIndex > 0) {
-                playMedia(currentIndex - 1);
-            }
-        });
-
-        nextBtn.addEventListener('click', () => {
-            if (currentIndex < mediaList.length - 1) {
-                playMedia(currentIndex + 1);
-            }
-        });
-
-        uploadBtn.addEventListener('click', uploadMedia);
-        createDirBtn.addEventListener('click', createDirectory);
-
-        // 密码模态框事件
-        confirmBtn.addEventListener('click', () => {
-            const password = modalPassword.value.trim();
-            if (!password) {
-                modalMessage.textContent = '请输入密码';
-                modalMessage.className = 'error';
-                return;
-            }
-            verifyDirectoryPassword(password);
-        });
-
-        cancelBtn.addEventListener('click', hidePasswordModal);
-
-        // ESC键关闭模态框
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                hidePasswordModal();
-            }
-        });
-
-        // 点击模态框外部关闭
-        passwordModal.addEventListener('click', (e) => {
-            if (e.target === passwordModal) {
-                hidePasswordModal();
-            }
-        });
-
-        // 媒体播放结束自动播放下一个
-        videoPlayer.addEventListener('ended', () => {
-            if (currentIndex < mediaList.length - 1) {
-                playMedia(currentIndex + 1);
-            }
-        });
-
-        audioPlayer.addEventListener('ended', () => {
-            if (currentIndex < mediaList.length - 1) {
-                playMedia(currentIndex + 1);
-            }
-        });
-
-        // 初始化应用
-        document.addEventListener('DOMContentLoaded', initApp);
-    </script>
+init();
+</script>
 </body>
 </html>
-
