@@ -26,7 +26,7 @@ pip install --upgrade pip -q
 pip install \
     pyinstaller \
     fastapi \
-    uvicorn[standard] \
+    uvicorn \
     aiofiles \
     pydantic \
     python-multipart \
