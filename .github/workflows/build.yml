@@ -1,5 +1,4 @@
 # .github/workflows/build.yml
-# 推送 tag（如 v1.0.0）时自动为三种架构打包并发布 Release
 
 name: Build Multi-Arch Binaries
 
@@ -38,10 +37,11 @@ jobs:
             --platform ${{ matrix.platform }} \
             -v "${{ github.workspace }}:/workspace" \
             -w /workspace \
-            python:3.11-slim \
+            python:3.11 \
             bash -c "
               set -e
-              apt-get update -qq && apt-get install -y -q binutils
+              apt-get update -qq && apt-get install -y -q binutils \
+              build-essential python3-dev
               pip install --upgrade pip -q
               pip install pyinstaller fastapi uvicorn aiofiles \
                   pydantic python-multipart httptools -q
