@@ -5,7 +5,9 @@ name: Build Multi-Arch Binaries
 
 on:
   workflow_dispatch:   # 支持手动触发
-
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  
 jobs:
   build:
     name: Build ${{ matrix.arch }}
@@ -41,7 +43,7 @@ jobs:
               set -e
               apt-get update -qq && apt-get install -y -q binutils
               pip install --upgrade pip -q
-              pip install pyinstaller fastapi 'uvicorn[standard]' aiofiles \
+              pip install pyinstaller fastapi uvicorn aiofiles \
                   pydantic python-multipart httptools -q
               pyinstaller nas-media-player.spec --clean --noconfirm
               mkdir -p releases
