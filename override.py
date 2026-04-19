@@ -1,38 +1,26 @@
-import os
-import sys
-import runpy
-from pathlib import Path
-
-APP_DIR = os.getenv("NAS_MEDIA_APP_DIR", "/opt/nas-media-player")
-OVERRIDE_FILE = Path(APP_DIR) / "override.py"
-
-if OVERRIDE_FILE.exists():
-    print(f"[OVERRIDE] 检测到 {OVERRIDE_FILE}，优先执行外部脚本", flush=True)
-    if APP_DIR not in sys.path:
-        sys.path.insert(0, APP_DIR)
-    runpy.run_path(str(OVERRIDE_FILE), run_name="__main__")
-    sys.exit(0)
-
 from fastapi import FastAPI, Request, Form, UploadFile, File, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import aiofiles
+import os
 import logging
 import json
 import hashlib
 import urllib.parse
-import re
+from pathlib import Path
+from datetime import datetime
+from typing import Optional, List, Dict
 import socket
 import tempfile
 import shutil
-from datetime import datetime
-from typing import Optional, List, Dict
 
 VIDEO_DIR = os.getenv("NAS_MEDIA_VIDEO_DIR", "/mnt")
 PORT = int(os.getenv("NAS_MEDIA_PORT", 8800))
+APP_DIR = os.getenv("NAS_MEDIA_APP_DIR", "/opt/nas-media-player")
 LOG_FILE = os.getenv("NAS_MEDIA_LOG_FILE", os.path.join(APP_DIR, "nas-media-player.log"))
 
+# 确保日志目录存在
 log_dir = os.path.dirname(LOG_FILE)
 os.makedirs(log_dir, exist_ok=True)
 logging.basicConfig(
@@ -45,32 +33,28 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# 配置路径
 VIDEO_ROOT = Path(VIDEO_DIR).resolve()
 PASSWORD_FILE = Path(APP_DIR) / "dir_passwords.json"
 
-
 def path_is_relative_to(path: Path, base: Path) -> bool:
+    """检查path是否是base的子路径（兼容Python 3.8-）"""
     try:
         path.relative_to(base)
         return True
     except ValueError:
         return False
 
-
 def path_relative_to(path: Path, base: Path) -> str:
+    """获取path相对于base的路径（兼容Python 3.8-）"""
     try:
         return str(path.relative_to(base))
     except ValueError:
         return str(path)
 
-
-def _natural_sort_key(s: str):
-    parts = re.split(r'(\d+)', s.lower())
-    return [int(p) if p.isdigit() else p for p in parts]
-
-
 app = FastAPI(title="NAS 轻量媒体播放器")
 
+# 添加CORS中间件
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -79,6 +63,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# 支持的格式定义
 SUPPORTED_VIDEO_FORMATS = {
     ".mp4": "video/mp4",
     ".avi": "video/x-msvideo",
@@ -115,9 +100,11 @@ SUPPORTED_AUDIO_FORMATS = {
     ".alac": "audio/alac"
 }
 
+# 合并所有支持的格式
 SUPPORTED_FORMATS = {**SUPPORTED_VIDEO_FORMATS, **SUPPORTED_IMAGE_FORMATS, **SUPPORTED_AUDIO_FORMATS}
 SUPPORTED_EXTENSIONS = list(SUPPORTED_FORMATS.keys())
 
+# 挂载静态文件（延迟到目录确实存在时）
 static_dir = Path(APP_DIR) / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
@@ -126,11 +113,19 @@ else:
 
 
 def get_safe_cookie_key(dir_path: str) -> str:
-    return "auth_" + hashlib.md5(dir_path.encode('utf-8')).hexdigest()
+    """将目录路径转换为MD5哈希值，避免Cookie键名包含非法字符"""
+    encoded_path = dir_path.encode('utf-8')
+    md5_hash = hashlib.md5(encoded_path).hexdigest()
+    return f"auth_{md5_hash}"
 
+
+# ── 密码管理功能 ────────────────────────────────────────────────────────────────
 
 def init_password_file():
-    Path(APP_DIR).mkdir(parents=True, exist_ok=True)
+    """初始化密码文件"""
+    app_dir = Path(APP_DIR)
+    app_dir.mkdir(parents=True, exist_ok=True)
+
     if not PASSWORD_FILE.exists():
         PASSWORD_FILE.write_text("{}", encoding="utf-8")
     else:
@@ -141,10 +136,12 @@ def init_password_file():
 
 
 def hash_password(password: str) -> str:
+    """密码哈希"""
     return hashlib.sha256(password.encode()).hexdigest()
 
 
 def _read_password_data() -> dict:
+    """读取密码文件数据（内部辅助函数）"""
     init_password_file()
     try:
         return json.loads(PASSWORD_FILE.read_text(encoding="utf-8"))
@@ -153,11 +150,13 @@ def _read_password_data() -> dict:
 
 
 def save_directory_password(dir_path: str, password: str):
+    """保存目录密码（原子写入，防止并发破坏）"""
     data = _read_password_data()
     data[dir_path] = {
         "password_hash": hash_password(password),
         "created_at": datetime.now().isoformat()
     }
+    # 原子写：先写临时文件再替换
     tmp_path = PASSWORD_FILE.with_suffix(".tmp")
     try:
         tmp_path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -169,25 +168,30 @@ def save_directory_password(dir_path: str, password: str):
 
 
 def get_directory_password(dir_path: str) -> Optional[str]:
+    """获取目录密码哈希"""
     return _read_password_data().get(dir_path, {}).get("password_hash")
 
 
 def check_directory_password(dir_path: str, password: str) -> bool:
+    """验证目录密码"""
     stored_hash = get_directory_password(dir_path)
     if not stored_hash:
-        return True
+        return True  # 未设置密码，视为通过
     return stored_hash == hash_password(password)
 
 
 def get_protected_directories() -> List[str]:
+    """获取所有受保护的目录"""
     return list(_read_password_data().keys())
 
 
 def is_protected_directory(dir_path: str) -> bool:
+    """检查目录（或其祖先）是否受保护"""
     if not dir_path:
         return False
+    protected_dirs = get_protected_directories()
     norm = dir_path.replace(os.sep, '/').rstrip('/')
-    for pdir in get_protected_directories():
+    for pdir in protected_dirs:
         pnorm = pdir.replace(os.sep, '/').rstrip('/')
         if norm == pnorm or norm.startswith(f"{pnorm}/"):
             return True
@@ -195,22 +199,28 @@ def is_protected_directory(dir_path: str) -> bool:
 
 
 def get_top_protected_directory(dir_path: str) -> Optional[str]:
+    """获取目录所属的顶级受保护祖先目录"""
     if not dir_path or not is_protected_directory(dir_path):
         return None
+
     norm = dir_path.replace(os.sep, '/').rstrip('/')
+    protected_dirs = get_protected_directories()
     top_dir = None
     min_depth = float('inf')
-    for pdir in get_protected_directories():
+
+    for pdir in protected_dirs:
         pnorm = pdir.replace(os.sep, '/').rstrip('/')
         if norm == pnorm or norm.startswith(f"{pnorm}/"):
             depth = pnorm.count('/')
             if depth < min_depth:
                 min_depth = depth
                 top_dir = pdir
+
     return top_dir
 
 
 def _verify_cookie(request: Request, top_protected_dir: str) -> bool:
+    """检查 Cookie 是否匹配受保护目录的密码哈希"""
     cookie_key = get_safe_cookie_key(top_protected_dir)
     cookie_value = request.cookies.get(cookie_key)
     stored_hash = get_directory_password(top_protected_dir)
@@ -218,6 +228,7 @@ def _verify_cookie(request: Request, top_protected_dir: str) -> bool:
 
 
 async def check_dir_access(dir_path: str, request: Request) -> bool:
+    """检查目录访问权限（统一入口）"""
     if not dir_path:
         return True
     top_protected_dir = get_top_protected_directory(dir_path)
@@ -231,11 +242,14 @@ async def check_dir_access(dir_path: str, request: Request) -> bool:
     return result
 
 
+# ── 路径安全辅助 ────────────────────────────────────────────────────────────────
+
 def safe_join(base: Path, *paths) -> Path:
+    """安全拼接路径，防止路径穿越攻击"""
     try:
         decoded_paths = [urllib.parse.unquote(p) for p in paths]
         joined = base.joinpath(*decoded_paths).resolve()
-        joined.relative_to(base)
+        joined.relative_to(base)  # 若越界则抛 ValueError
         return joined
     except ValueError:
         raise HTTPException(status_code=403, detail="无效路径（越权访问）")
@@ -244,13 +258,17 @@ def safe_join(base: Path, *paths) -> Path:
         raise HTTPException(status_code=403, detail="Invalid path")
 
 
-def encode_filename_for_header(filename: str) -> str:
-    try:
-        filename.encode('ascii')
-        return filename
-    except UnicodeEncodeError:
-        return urllib.parse.quote(filename)
+# ── 自然排序辅助 ────────────────────────────────────────────────────────────────
 
+import re
+
+def _natural_sort_key(s: str):
+    """将字符串拆分为文本/数字段，用于自然排序（1, 2, 10 而不是 1, 10, 2）"""
+    parts = re.split(r'(\d+)', s.lower())
+    return [int(p) if p.isdigit() else p for p in parts]
+
+
+# ── API 路由 ────────────────────────────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
@@ -321,15 +339,16 @@ async def verify_dir_password(dir_path: str = Form(...), password: str = Form(..
         top_protected_dir = get_top_protected_directory(dir_path)
         if not top_protected_dir:
             return {"success": True, "message": "目录不受保护"}
+
         if check_directory_password(top_protected_dir, password):
             cookie_key = get_safe_cookie_key(top_protected_dir)
             response = JSONResponse({"success": True, "message": "密码正确"})
             response.set_cookie(
                 key=cookie_key,
                 value=hash_password(password),
-                max_age=3600 * 8,
+                max_age=3600 * 8,   # 8小时（原来1小时，延长减少重复验证）
                 httponly=True,
-                secure=False,
+                secure=False,       # LAN 部署通常无 HTTPS
                 samesite="lax"
             )
             logger.info(f"目录密码验证成功: {top_protected_dir}")
@@ -348,6 +367,7 @@ async def clear_dir_auth(dir_path: str = Form(...)):
         top_protected_dir = get_top_protected_directory(dir_path)
         if not top_protected_dir:
             return {"success": True, "message": "目录不受保护"}
+
         cookie_key = get_safe_cookie_key(top_protected_dir)
         response = JSONResponse({"success": True, "message": "已清除访问权限"})
         response.delete_cookie(cookie_key)
@@ -394,6 +414,7 @@ async def get_media(subdir: Optional[str] = None, request: Request = None):
                         "path": str(file)
                     })
 
+        # 自然排序（1, 2, 10 顺序，而非 1, 10, 2）
         media.sort(key=lambda x: _natural_sort_key(x["name"]))
         logger.info(f"Found {len(media)} media files in {target_dir}")
 
@@ -408,6 +429,15 @@ async def get_media(subdir: Optional[str] = None, request: Request = None):
     except Exception as e:
         logger.error(f"获取媒体列表失败: {e}")
         return {"media": [], "current_dir": subdir or "", "error": str(e)}
+
+
+def encode_filename_for_header(filename: str) -> str:
+    """编码文件名以支持中文等非 ASCII 字符"""
+    try:
+        filename.encode('ascii')
+        return filename
+    except UnicodeEncodeError:
+        return urllib.parse.quote(filename)
 
 
 @app.get("/api/media/{path:path}")
@@ -436,6 +466,7 @@ async def serve_media(path: str, request: Request):
         encoded_filename = encode_filename_for_header(filename)
         content_disp = f'inline; filename="{encoded_filename}"; filename*=UTF-8\'\'{encoded_filename}'
 
+        # 图片：直接返回
         if ext in SUPPORTED_IMAGE_FORMATS:
             logger.info(f"Serving image: {full_media_path}")
             return FileResponse(
@@ -444,6 +475,7 @@ async def serve_media(path: str, request: Request):
                 headers={"Cache-Control": "max-age=3600", "Content-Disposition": content_disp}
             )
 
+        # 音频：直接返回（浏览器原生断点续传）
         if ext in SUPPORTED_AUDIO_FORMATS:
             logger.info(f"Serving audio: {full_media_path}")
             return FileResponse(
@@ -452,10 +484,11 @@ async def serve_media(path: str, request: Request):
                 headers={"Content-Disposition": content_disp, "Accept-Ranges": "bytes"}
             )
 
+        # 视频：手动处理 Range 断点续传
         file_size = full_media_path.stat().st_size
         range_header = request.headers.get("Range")
 
-        start, end = 0, min(1024 * 1024 * 2, file_size - 1)
+        start, end = 0, min(1024 * 1024 * 2, file_size - 1)  # 默认前 2 MB
         if range_header:
             try:
                 range_str = range_header.split("=")[-1]
@@ -581,6 +614,7 @@ async def upload_media(
         upload_dir = safe_join(VIDEO_ROOT, target_dir.strip()) if target_dir.strip() else VIDEO_ROOT
         os.makedirs(upload_dir, exist_ok=True)
 
+        # 文件名去重
         file_path = upload_dir / filename
         counter = 1
         while file_path.exists():
@@ -588,6 +622,7 @@ async def upload_media(
             file_path = upload_dir / f"{stem}_{counter}{file_ext}"
             counter += 1
 
+        # 写入文件（先写临时文件，成功后原子移动）
         tmp_fd, tmp_name = tempfile.mkstemp(dir=upload_dir)
         try:
             content_length = 0
@@ -625,6 +660,7 @@ async def upload_media(
     except HTTPException:
         raise
     except Exception as e:
+        # 清理可能已创建的残留文件
         if file_path and isinstance(file_path, Path) and file_path.exists() and file_path.stat().st_size == 0:
             file_path.unlink(missing_ok=True)
         logger.error(f"上传失败: {e}")
@@ -638,6 +674,7 @@ async def upload_media(
 
 @app.delete("/api/delete-file")
 async def delete_file(request: Request, file_path: str):
+    """删除媒体文件"""
     try:
         full_path = safe_join(VIDEO_ROOT, urllib.parse.unquote(file_path))
         media_dir = (
@@ -666,6 +703,7 @@ async def delete_file(request: Request, file_path: str):
 
 @app.delete("/api/delete-directory")
 async def delete_directory(request: Request, dir_path: str):
+    """删除目录（仅允许删除空目录）"""
     try:
         full_path = safe_join(VIDEO_ROOT, urllib.parse.unquote(dir_path))
         rel_path = (
@@ -681,11 +719,13 @@ async def delete_directory(request: Request, dir_path: str):
         if full_path == VIDEO_ROOT:
             raise HTTPException(status_code=403, detail="不允许删除根目录")
 
+        # 检查目录是否为空
         if any(full_path.iterdir()):
             raise HTTPException(status_code=409, detail="目录不为空，请先删除其中的文件")
 
         full_path.rmdir()
 
+        # 同步清理密码记录
         data = _read_password_data()
         if rel_path in data:
             del data[rel_path]
@@ -700,20 +740,24 @@ async def delete_directory(request: Request, dir_path: str):
         return {"success": False, "message": f"删除失败: {str(e)}"}
 
 
+# ── 启动入口 ────────────────────────────────────────────────────────────────────
+
 def create_listen_sockets(port: int) -> list:
     sockets = []
 
+    # IPv4
     sock4 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock4.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
         sock4.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
     except (AttributeError, OSError):
-        pass
+        pass  # SO_REUSEPORT 并非所有平台都支持
     sock4.bind(("0.0.0.0", port))
     sock4.listen(2048)
     sockets.append(sock4)
     logger.info(f"IPv4 监听: 0.0.0.0:{port}")
 
+    # IPv6（可选）
     try:
         sock6 = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
         sock6.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -752,6 +796,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--version", action="store_true")
+
     args = parser.parse_args()
 
     if args.version:
