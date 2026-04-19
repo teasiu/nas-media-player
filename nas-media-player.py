@@ -800,7 +800,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.version:
-        print("nas-media-player v1.0")
+        print("nas-media-player v1.2")
         raise SystemExit(0)
 
     main()
