@@ -13,6 +13,18 @@ echo "  当前架构: ${ARCH}"
 echo "========================================"
 
 # 1. 检查 Python 版本（建议 3.9+）
+ARCH=$(uname -m)
+
+if [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "armv7l" ]; then
+  apt-get update
+  apt-get install -y \
+    python3 \
+    python3-pip \
+    python3-dev \
+    build-essential \
+    binutils \
+    python3.8-venv
+fi
 python3 --version
 
 # 2. 创建并激活虚拟环境（隔离，避免污染系统）
@@ -61,7 +73,7 @@ echo "========================================"
 
 # 7. 快速验证（不启动服务，只检查 --help）
 echo "[5/5] 验证二进制可执行..."
-"${RELEASES_DIR}/${OUTPUT_NAME}" --help 2>/dev/null || true
+"${RELEASES_DIR}/${OUTPUT_NAME}" --version 2>/dev/null || true
 echo "验证完成（如无错误输出则正常）"
 
 # 清理虚拟环境

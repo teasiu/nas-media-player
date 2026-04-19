@@ -792,4 +792,15 @@ def main():
 
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--version", action="store_true")
+
+    args = parser.parse_args()
+
+    if args.version:
+        print("nas-media-player v1.0")
+        raise SystemExit(0)
+
     main()
