@@ -30,7 +30,6 @@ pip install \
     aiofiles \
     pydantic \
     python-multipart \
-    httptools \
     -q
 
 # 4. 执行打包

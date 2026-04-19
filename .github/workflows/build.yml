@@ -1,28 +1,26 @@
-# .github/workflows/build.yml
-
-name: Build Multi-Arch Binaries
+name: Build Multi-Arch Binaries (Direct Release Upload)
 
 on:
-  workflow_dispatch:   # 支持手动触发
+  workflow_dispatch:
+
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  
+
 jobs:
   build:
     name: Build ${{ matrix.arch }}
     runs-on: ubuntu-latest
+
     strategy:
+      fail-fast: false
       matrix:
         include:
           - arch: x86_64
             platform: linux/amd64
-            python-arch: x64
           - arch: arm64
             platform: linux/arm64
-            python-arch: arm64
           - arch: armhf
             platform: linux/arm/v7
-            python-arch: arm
 
     steps:
       - name: Checkout
@@ -31,47 +29,51 @@ jobs:
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      - name: Build binary in Docker
+      - name: Build binary (Ubuntu 20.04)
         run: |
           docker run --rm \
-            --platform ${{ matrix.platform }} \
+            --platform=${{ matrix.platform }} \
             -v "${{ github.workspace }}:/workspace" \
             -w /workspace \
-            python:3.11 \
-            bash -c "
-              set -e
-              apt-get update -qq && apt-get install -y -q binutils \
-              build-essential python3-dev
-              pip install --upgrade pip -q
-              pip install pyinstaller fastapi uvicorn aiofiles \
-                  pydantic python-multipart httptools -q
+            ubuntu:20.04 \
+            bash -euxo pipefail -c '
+              apt-get update
+
+              apt-get install -y \
+                python3 \
+                python3-pip \
+                python3-dev \
+                build-essential \
+                binutils
+
+              pip3 install --upgrade pip
+
+              pip3 install \
+                pyinstaller \
+                fastapi \
+                uvicorn \
+                aiofiles \
+                pydantic \
+                python-multipart
+
               pyinstaller nas-media-player.spec --clean --noconfirm
-              mkdir -p releases
-              cp dist/nas-media-player releases/nas-media-player-${{ matrix.arch }}
-              chmod +x releases/nas-media-player-${{ matrix.arch }}
-            "
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: nas-media-player-${{ matrix.arch }}
-          path: releases/nas-media-player-${{ matrix.arch }}
+              mkdir -p dist_release
+              cp dist/nas-media-player dist_release/nas-media-player-${{ matrix.arch }}
+              chmod +x dist_release/nas-media-player-${{ matrix.arch }}
+            '
 
-  release:
-    name: Create Release
-    needs: build
-    runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+      - name: Generate timestamp tag (shared logic)
+        id: tag
+        run: |
+          echo "TAG=build-$(date +'%Y%m%d-%H%M%S')" >> $GITHUB_OUTPUT
 
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: releases/
-          merge-multiple: true
-
-      - name: Create GitHub Release
+      - name: Upload to GitHub Release (direct)
         uses: softprops/action-gh-release@v2
         with:
-          files: releases/*
-          generate_release_notes: true
+          tag_name: ${{ steps.tag.outputs.TAG }}
+          name: Release ${{ steps.tag.outputs.TAG }}
+          files: dist_release/nas-media-player-${{ matrix.arch }}
+          generate_release_notes: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
