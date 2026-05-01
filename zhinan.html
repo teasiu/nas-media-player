@@ -129,7 +129,7 @@
 <body>
     <header>
         <h1>NAS媒体播放器使用指南</h1>
-        <p class="version-info">版本：v1.0 | 日期：2025年12月</p>
+        <p class="version-info">版本：v1.2 | 日期：2026年5月</p>
     </header>
 
     <div class="section">
@@ -473,9 +473,13 @@
 
         </ul>
         <p style="margin-top: 25px; text-align: center; color: #666; font-size: 1.1em;">
-            © 2025 海纳思 版权所有 | 保留所有权利
-        </p>
+		© <span id="year"></span> 海纳思 版权所有 | 保留所有权利
+	</p>
     </div>
+    <!-- 自动更新年份 -->
+<script>
+    document.getElementById('year').innerText = new Date().getFullYear();
+</script>
 </body>
 </html>
 
