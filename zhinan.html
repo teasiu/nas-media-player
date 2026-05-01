@@ -194,7 +194,7 @@
                 <h3>媒体播放操作</h3>
                 <ol>
                     <li>登录系统后，左侧/上方的目录选择下拉框中选择媒体文件所在的子目录</li>
-                    <li>系统会自动扫描该目录下的所有支持格式媒体文件，并显示在媒体选择下拉框中</li>
+                    <li>系统会自动扫描该目录下<strong>最多3层子目录</strong>中的所有支持格式媒体文件，并显示在媒体选择下拉框中</li>
                     <li>选择要播放的文件：
                         <ul>
                             <li>方式一：直接点击媒体选择下拉框中的目标文件</li>
@@ -208,6 +208,10 @@
                         </ul>
                     </li>
                 </ol>
+                <div class="note">
+                    <strong>目录扫描说明</strong>：<br>
+                    为提升性能和响应速度，系统默认只扫描目录结构的<strong>前3层</strong>。如果您的媒体文件位于更深层的子目录中，可以通过API参数调整扫描深度，例如：<code>GET /api/directories?max_depth=5</code>（扫描5层）。如需永久调整默认深度，请修改程序代码中的默认参数。
+                </div>
             </div>
         </div>
 
@@ -374,7 +378,7 @@
             </tr>
             <tr>
                 <td>如何修改媒体根目录？</td>
-                <td>编辑后端主文件（/opt/nas-media-player/main.py）中的<code>VIDEO_ROOT</code>变量，修改为新的目录路径，保存后重启服务即可生效（需确保新目录有读写权限）。</td>
+                <td>编辑后端主文件（/opt/nas-media-player/nas-media-player.py）中的<code>VIDEO_ROOT</code>变量，修改为新的目录路径，保存后重启服务即可生效（需确保新目录有读写权限）。</td>
             </tr>
             <tr>
                 <td>加密目录的密码忘记了怎么办？</td>
@@ -394,7 +398,7 @@
             </tr>
             <tr>
                 <td>如何修改服务端口（非8800）？</td>
-                <td>启动服务时修改端口参数，如<code>/opt/nas-media-player/main.py</code>（改为8888端口），同时需确保新端口未被占用且防火墙已开放。</td>
+                <td>启动服务时修改端口参数，如<code>/opt/nas-media-player/override.py</code>（改为8888端口），同时需确保新端口未被占用且防火墙已开放。</td>
             </tr>
         </table>
     </div>

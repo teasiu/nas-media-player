@@ -261,9 +261,11 @@ async def read_root():
 
 
 @app.get("/api/directories")
-async def get_directories():
-    def traverse(path: Path, rel_path: str = "") -> List[Dict]:
+async def get_directories(max_depth: int = 3):
+    def traverse(path: Path, rel_path: str = "", depth: int = 0) -> List[Dict]:
         items = []
+        if depth >= max_depth:
+            return items  # 超过深度限制，返回空列表
         try:
             for d in sorted(path.iterdir(), key=lambda x: _natural_sort_key(x.name)):
                 if d.is_dir() and not d.name.startswith('.'):
@@ -273,7 +275,7 @@ async def get_directories():
                         "path": sub_rel,
                         "type": "directory",
                         "protected": is_protected_directory(sub_rel),
-                        "children": traverse(d, sub_rel)
+                        "children": traverse(d, sub_rel, depth + 1)
                     })
         except PermissionError:
             logger.warning(f"目录无读取权限: {path}")
@@ -286,10 +288,12 @@ async def get_directories():
 
 
 @app.get("/api/all-directories")
-async def get_all_directories():
+async def get_all_directories(max_depth: int = 3):
     all_dirs = []
 
-    def traverse(path: Path, rel_path: str = ""):
+    def traverse(path: Path, rel_path: str = "", depth: int = 0):
+        if depth >= max_depth:
+            return  # 超过深度限制，停止遍历
         all_dirs.append({
             "name": rel_path if rel_path else "主目录",
             "path": rel_path,
@@ -299,7 +303,7 @@ async def get_all_directories():
             for d in sorted(path.iterdir(), key=lambda x: _natural_sort_key(x.name)):
                 if d.is_dir() and not d.name.startswith('.'):
                     sub_rel = f"{rel_path}/{d.name}" if rel_path else d.name
-                    traverse(d, sub_rel)
+                    traverse(d, sub_rel, depth + 1)
         except PermissionError:
             logger.warning(f"目录无读取权限: {path}")
         except Exception as e:
